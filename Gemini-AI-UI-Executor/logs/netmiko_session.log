@@ -32,23 +32,15 @@ Rin (1) # set action accept
 
 Rin (1) # set schedule "always"
 
-Rin (1) # set service "ALL"
-
-Rin (1) # set srcaddr "any"
+Rin (1) # set service "tcp"
 entry not found in datasource
 
-value parse error before 'any'
-Command fail. Return code -3
-
-Rin (1) # set dstaddr "any"
-entry not found in datasource
-
-value parse error before 'any'
+value parse error before 'tcp'
 Command fail. Return code -3
 
 Rin (1) # next
-Either srcaddr/dstaddr or srcaddr6/dstaddr6 MUST be set.
-object check operator error, -651, discard the setting
+Must set service name.
+object check operator error, -18, discard the setting
 Command fail. Return code 1
 
 Rin (policy) # edit 2
@@ -62,23 +54,62 @@ Rin (2) # set action accept
 
 Rin (2) # set schedule "always"
 
-Rin (2) # set service "ALL"
-
-Rin (2) # set srcaddr "any"
+Rin (2) # set service "tcp"
 entry not found in datasource
 
-value parse error before 'any'
-Command fail. Return code -3
-
-Rin (2) # set dstaddr "any"
-entry not found in datasource
-
-value parse error before 'any'
+value parse error before 'tcp'
 Command fail. Return code -3
 
 Rin (2) # next
-Either srcaddr/dstaddr or srcaddr6/dstaddr6 MUST be set.
-object check operator error, -651, discard the setting
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # config firewall policy
+Unknown action 0
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule "always"
+
+Rin (1) # set service "udp"
+entry not found in datasource
+
+value parse error before 'udp'
+Command fail. Return code -3
+
+Rin (1) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set schedule "always"
+
+Rin (2) # set service "udp"
+entry not found in datasource
+
+value parse error before 'udp'
+Command fail. Return code -3
+
+Rin (2) # next
+Must set service name.
+object check operator error, -18, discard the setting
 Command fail. Return code 1
 
 Rin (policy) # end

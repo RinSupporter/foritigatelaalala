@@ -869,3 +869,330 @@ Rin (policy) # end
 
 Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:663]
 2025-05-26 21:08:27,284 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]
+2025-05-26 21:12:29,946 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]
+2025-05-26 21:12:31,113 INFO: -------------------- RAW GEMINI RESPONSE (Generate) -------------------- [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:545]
+2025-05-26 21:12:31,113 INFO: ```fortios
+config firewall policy
+edit 1
+set srcintf "port2"
+set dstintf "port1"
+set action accept
+set service any
+next
+edit 2
+set srcintf "port1"
+set dstintf "port2"
+set action accept
+set service any
+next
+end
+``` [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:546]
+2025-05-26 21:12:31,113 INFO: ------------------------------------------------------------ [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:547]
+2025-05-26 21:12:31,113 INFO: Trich xuat code voi tags: ['fortios', 'cli', 'text'] cho ext: .fortios [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:466]
+2025-05-26 21:12:31,113 INFO: Tim thay khoi code voi tag: 'fortios' (pattern 0). [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:476]
+2025-05-26 21:13:45,372 INFO: Nhan dc lenh FortiOS CLI (.fortios). Chuan bi thuc thi qua Netmiko. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:733]
+2025-05-26 21:13:45,372 INFO: Dang ket noi toi FortiGate: 192.168.1.99:22 voi user: admin [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:645]
+2025-05-26 21:13:47,023 INFO: Ket noi FortiGate thanh cong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:647]
+2025-05-26 21:13:47,023 INFO: Phat hien lenh config, su dung send_config_set. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:652]
+2025-05-26 21:13:50,635 WARNING: Loi khi thuc thi config tren FortiGate: config firewall policy
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set service any
+entry not found in datasource
+
+value parse error before 'any'
+Command fail. Return code -3
+
+Rin (1) # next
+Attribute 'schedule' MUST be set.
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set service any
+entry not found in datasource
+
+value parse error before 'any'
+Command fail. Return code -3
+
+Rin (2) # next
+Attribute 'schedule' MUST be set.
+Command fail. Return code 1
+
+Rin (policy) # end
+
+Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:663]
+2025-05-26 21:13:53,591 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]
+2025-05-26 21:13:57,662 INFO: Debug: Tim thay code sua loi voi tag 'fortios' (pattern 0). [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:923]
+2025-05-26 21:14:03,663 INFO: Nhan dc lenh FortiOS CLI (.fortios). Chuan bi thuc thi qua Netmiko. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:733]
+2025-05-26 21:14:03,664 INFO: Dang ket noi toi FortiGate: 192.168.1.99:22 voi user: admin [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:645]
+2025-05-26 21:14:05,285 INFO: Ket noi FortiGate thanh cong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:647]
+2025-05-26 21:14:05,285 INFO: Phat hien lenh config, su dung send_config_set. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:652]
+2025-05-26 21:14:09,096 WARNING: Loi khi thuc thi config tren FortiGate: config firewall policy
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule "always"
+
+Rin (1) # set service "all"
+entry not found in datasource
+
+value parse error before 'all'
+Command fail. Return code -3
+
+Rin (1) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set schedule "always"
+
+Rin (2) # set service "all"
+entry not found in datasource
+
+value parse error before 'all'
+Command fail. Return code -3
+
+Rin (2) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # end
+
+Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:663]
+2025-05-26 21:14:12,666 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]
+2025-05-26 21:14:16,633 INFO: Debug: Tim thay code sua loi voi tag 'fortios' (pattern 0). [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:923]
+2025-05-26 21:14:28,858 INFO: Nhan dc lenh FortiOS CLI (.fortios). Chuan bi thuc thi qua Netmiko. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:733]
+2025-05-26 21:14:28,858 INFO: Dang ket noi toi FortiGate: 192.168.1.99:22 voi user: admin [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:645]
+2025-05-26 21:14:30,452 INFO: Ket noi FortiGate thanh cong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:647]
+2025-05-26 21:14:30,452 INFO: Phat hien lenh config, su dung send_config_set. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:652]
+2025-05-26 21:14:35,774 WARNING: Loi khi thuc thi config tren FortiGate: config firewall policy
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule "always"
+
+Rin (1) # set service "tcp"
+entry not found in datasource
+
+value parse error before 'tcp'
+Command fail. Return code -3
+
+Rin (1) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set schedule "always"
+
+Rin (2) # set service "tcp"
+entry not found in datasource
+
+value parse error before 'tcp'
+Command fail. Return code -3
+
+Rin (2) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # config firewall policy
+Unknown action 0
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule "always"
+
+Rin (1) # set service "udp"
+entry not found in datasource
+
+value parse error before 'udp'
+Command fail. Return code -3
+
+Rin (1) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set schedule "always"
+
+Rin (2) # set service "udp"
+entry not found in datasource
+
+value parse error before 'udp'
+Command fail. Return code -3
+
+Rin (2) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # end
+
+Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:663]
+2025-05-26 21:23:52,423 INFO: Nhan dc lenh FortiOS CLI (.fortios). Chuan bi thuc thi qua Netmiko. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:733]
+2025-05-26 21:23:52,423 INFO: Dang ket noi toi FortiGate: 192.168.1.99:22 voi user: admin [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:645]
+2025-05-26 21:23:54,028 INFO: Ket noi FortiGate thanh cong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:647]
+2025-05-26 21:23:54,028 INFO: Phat hien lenh config, su dung send_config_set. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:652]
+2025-05-26 21:23:59,352 WARNING: Loi khi thuc thi config tren FortiGate: config firewall policy
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule "always"
+
+Rin (1) # set service "tcp"
+entry not found in datasource
+
+value parse error before 'tcp'
+Command fail. Return code -3
+
+Rin (1) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set schedule "always"
+
+Rin (2) # set service "tcp"
+entry not found in datasource
+
+value parse error before 'tcp'
+Command fail. Return code -3
+
+Rin (2) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # config firewall policy
+Unknown action 0
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule "always"
+
+Rin (1) # set service "udp"
+entry not found in datasource
+
+value parse error before 'udp'
+Command fail. Return code -3
+
+Rin (1) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set schedule "always"
+
+Rin (2) # set service "udp"
+entry not found in datasource
+
+value parse error before 'udp'
+Command fail. Return code -3
+
+Rin (2) # next
+Must set service name.
+object check operator error, -18, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # end
+
+Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:663]
+2025-05-26 21:24:04,188 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]
+2025-05-26 21:27:21,858 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]

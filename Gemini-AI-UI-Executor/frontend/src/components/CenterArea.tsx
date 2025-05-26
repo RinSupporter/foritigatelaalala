@@ -4,7 +4,7 @@ import { FiSettings, FiChevronUp } from 'react-icons/fi';
 import UserInput from './UserInput';
 import InteractionBlock from './InteractionBlock';
 import CollapsedInteractionBlock from './CollapsedInteractionBlock';
-import { ConversationBlock, ExecutionResult /*, ReviewResult, DebugResult, InstallationResult, ExplainResult*/ } from '../App'; // Types khac ko can truc tiep
+import { ConversationBlock, ExecutionResult } from '../App';
 import './CenterArea.css';
 
 interface CenterAreaProps {
@@ -15,7 +15,7 @@ interface CenterAreaProps {
   setPrompt: (value: string) => void;
   onGenerate: (prompt: string) => void;
   onReview: (codeToReview: string, blockId: string) => void;
-  onExecute: (codeToExecute: string, blockId: string) => void; // Chung cho file & FGT
+  onExecute: (codeToExecute: string, blockId: string) => void;
   onDebug: (codeToDebug: string, executionResult: ExecutionResult, blockId: string) => void;
   onApplyCorrectedCode: (code: string, originalDebugBlockId: string) => void;
   onInstallPackage: (packageName: string, originalDebugBlockId: string) => Promise<void>;
@@ -36,26 +36,24 @@ const CenterArea: React.FC<CenterAreaProps> = (props) => {
     onToggleSidebar
   } = props;
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null); // Ref for the main interaction container
+  const endOfMessagesRef = useRef<HTMLDivElement>(null); // Ref for the marker at the end
 
-   useEffect(() => { // Auto scroll
-    if (scrollRef.current) {
-        const scrollTarget = scrollRef.current;
-        const newBlock = conversation.slice().reverse().find(b => b.isNew);
-        const newElement = newBlock ? scrollTarget.querySelector(`[data-block-id="${newBlock.id}"]`) : null;
-        if (newElement) {
-             const timer = setTimeout(() => {
-                 if (scrollTarget && newElement) {
-                     const elTop = (newElement as HTMLElement).offsetTop;
-                     const elHeight = newElement.clientHeight;
-                     const contHeight = scrollTarget.clientHeight;
-                     scrollTarget.scrollTo({ top: Math.max(0, elTop - contHeight + elHeight + 30), behavior: 'smooth' });
-                 }
-             }, 100);
-             return () => clearTimeout(timer);
-        }
+  useEffect(() => {
+    // Auto scroll to the bottom when new messages are added
+    if (endOfMessagesRef.current) {
+      const lastBlock = conversation.length > 0 ? conversation[conversation.length - 1] : null;
+
+      if (lastBlock && lastBlock.isNew) {
+        // Using a timeout to allow the DOM to update and animations to progress
+        // before attempting to scroll. 250ms might be a safer value.
+        const timer = setTimeout(() => {
+          endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 250); // Increased timeout for potentially complex rendering
+        return () => clearTimeout(timer);
+      }
     }
-   }, [conversation]);
+  }, [conversation]); // Re-run when the conversation array changes
 
   const renderConversation = () => {
     const rounds: { userBlock: ConversationBlock; childrenBlocks: ConversationBlock[] }[] = [];
@@ -90,7 +88,7 @@ const CenterArea: React.FC<CenterAreaProps> = (props) => {
         return (
             <div key={userBlockId + '-round'} className={`interaction-round ${isCollapsed ? 'collapsed' : ''}`}>
                 {isCollapsed ? (
-                    <CollapsedInteractionBlock key={userBlockId + '-ch'} promptText={round.userBlock.data} blockId={userBlockId} timestamp={round.userBlock.timestamp} onToggleCollapse={onToggleCollapse}/>
+                    <CollapsedInteractionBlock key={userBlockId + '-ch'} promptText={round.userBlock.data as string} blockId={userBlockId} timestamp={round.userBlock.timestamp} onToggleCollapse={onToggleCollapse}/>
                 ) : (
                     <InteractionBlock key={userBlockId + '-eh'} block={round.userBlock} isBusy={isBusy} onReview={()=>{}} onExecute={()=>{}} onDebug={()=>{}} onApplyCorrectedCode={()=>{}} onInstallPackage={async ()=>{}} onExplain={()=>{}} expandedOutputs={expandedOutputs} onToggleOutputExpand={onToggleOutputExpand} data-block-id={round.userBlock.id}/>
                 )}
@@ -120,6 +118,7 @@ const CenterArea: React.FC<CenterAreaProps> = (props) => {
       </div>
       <div className="interaction-container" ref={scrollRef}>
         {renderConversation()}
+        <div ref={endOfMessagesRef} style={{ height: '1px' }} /> {/* Empty marker div at the end */}
       </div>
       <UserInput prompt={prompt} setPrompt={setPrompt} onSend={() => onGenerate(prompt)} isLoading={isLoading} />
     </main>

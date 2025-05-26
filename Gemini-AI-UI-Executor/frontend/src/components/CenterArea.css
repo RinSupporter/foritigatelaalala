@@ -6,61 +6,69 @@
 .center-area-wrapper {
   display: flex;
   flex-direction: column;
-  flex: 1; /* Cho phép co giãn theo không gian còn lại */
-  min-height: 0; /* RẤT QUAN TRỌNG: cho phép flex item co lại nhỏ hơn nội dung và để con scroll */
+  flex: 1; /* Takes up remaining space from its parent (main-container) */
+  min-height: 0; /* VERY IMPORTANT: Allows this flex item to shrink smaller than its content, crucial for child scrolling */
   background-color: var(--bg-primary);
   width: 100%;
-  max-width: 100%;
-  overflow: hidden; /* Ngăn wrapper này tạo scroll, buộc con phải scroll */
-  position: relative; /* Có thể giúp ổn định stacking context và layout */
+  /* max-width: 100%; REMOVE THIS if not strictly necessary, can sometimes conflict with flex behavior */
+  overflow: hidden; /* Parent should hide overflow, child will scroll */
+  position: relative; 
 }
 
 /* --- Top Bar --- */
 .top-bar {
-display: flex;
-justify-content: space-between;
-align-items: center;
-padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 3);
-border-bottom: 1px solid #131314; /* Đường kẻ phaan cách */
-background-color: var(--bg-primary);
-flex-shrink: 0; /* Không co lại */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 3);
+  border-bottom: 1px solid #131314; 
+  background-color: var(--bg-primary);
+  flex-shrink: 0; /* Top bar should not shrink */
 }
 .top-bar h2 {
-color: var(--text-primary);
-font-size: 1.1rem;
-font-weight: 600;
-margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
 }
 .settings-trigger-button {
-color: var(--text-muted);
+  color: var(--text-muted);
 }
 .settings-trigger-button:hover {
-color: var(--text-primary);
-background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
 }
 
 /* --- Interaction Container (Scrollable Area) --- */
 .interaction-container {
-    flex: 1; /* Chiếm không gian còn lại trong center-area-wrapper */
-    min-height: 0; /* Quan trọng để overflow-y hoạt động đúng trong flex con */
-    overflow-y: auto; /* Đây là vùng scroll chính */
-    padding: 0 calc(var(--spacing-unit) * 3);
+    flex-grow: 1; /* Allow it to grow and take available space from center-area-wrapper */
+    flex-shrink: 1; /* Allow it to shrink if needed, though grow is more important here */
+    flex-basis: 0; /* Or auto. This combined with flex-grow: 1 makes it take remaining space */
+    
+    min-height: 0; /* CRUCIAL: This allows the container to be smaller than its content, which is necessary for overflow-y to work */
+    overflow-y: auto; /* This is the main scrollable area */
+    
+    padding: 0 calc(var(--spacing-unit) * 3); /* Keep horizontal padding */
+    /* Add some bottom padding to ensure the last item isn't flush against the UserInput */
+    padding-bottom: calc(var(--spacing-unit) * 2); 
+
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 0; /* Gap between interaction-rounds */
+    width: 100%; /* Ensure it spans the full width of its parent */
 }
 
 /* --- Interaction Round Separator --- */
 .interaction-round {
-/*  padding trên dưới cho khoảng cách giữa các round */
-padding: calc(var(--spacing-unit) * 1) 0;
-border-bottom: 1px solid var(--border-color-secondary);
-margin: 0;
+  padding: calc(var(--spacing-unit) * 1) 0;
+  border-bottom: 1px solid var(--border-color-secondary);
+  margin: 0;
+  /* flex-shrink: 0; /* Ensure rounds don't shrink unexpectedly, though typically not needed here */
 }
 .interaction-round:last-child {
-border-bottom: none;
+  border-bottom: none;
 }
-.placeholder-round { /* Dùng cho lỗi khởi tạo */
+.placeholder-round { 
   border-bottom: 1px solid var(--border-color-secondary);
 }
 .placeholder-round:last-child { border-bottom: none; }

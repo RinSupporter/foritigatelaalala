@@ -6,11 +6,13 @@
 .center-area-wrapper {
   display: flex;
   flex-direction: column;
-  height: 100%; /* Chiếm hết chiều cao còn lại */
-  flex: 1;
+  flex: 1; /* Cho phép co giãn theo không gian còn lại */
+  min-height: 0; /* RẤT QUAN TRỌNG: cho phép flex item co lại nhỏ hơn nội dung và để con scroll */
   background-color: var(--bg-primary);
   width: 100%;
   max-width: 100%;
+  overflow: hidden; /* Ngăn wrapper này tạo scroll, buộc con phải scroll */
+  position: relative; /* Có thể giúp ổn định stacking context và layout */
 }
 
 /* --- Top Bar --- */
@@ -39,9 +41,9 @@ background-color: var(--bg-secondary);
 
 /* --- Interaction Container (Scrollable Area) --- */
 .interaction-container {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
+    flex: 1; /* Chiếm không gian còn lại trong center-area-wrapper */
+    min-height: 0; /* Quan trọng để overflow-y hoạt động đúng trong flex con */
+    overflow-y: auto; /* Đây là vùng scroll chính */
     padding: 0 calc(var(--spacing-unit) * 3);
     display: flex;
     flex-direction: column;
@@ -106,6 +108,7 @@ flex-shrink: 0;
 /* Icon styles per type */
 .block-icon.user-icon        { background-color: var(--accent-primary); color: var(--bg-primary); }
 .block-icon.ai-icon          { background-color: #9333ea; color: white; } /*  cho AI */
+.block-icon.fgt-cli-icon     { background-color: #f26522; color: white; } /* Fortinet orange */
 .block-icon.review-icon      { background-color: #34a853; color: white; } /*  cho review */
 .block-icon.execution-icon   { background-color: var(--bg-tertiary); }
 .block-icon.execution-icon.success svg { color: var(--success-color); }
@@ -538,7 +541,6 @@ font-size: 0.8rem;
   background-color: var(--bg-code) !important; /* Ensure background */
   padding: calc(var(--spacing-unit) * 0.75) var(--spacing-unit) !important; /* Ensure padding */
 }
-/* ... (rest of debug styles remain the same) ... */
 .install-suggestion-area {
   margin-top: calc(var(--spacing-unit) * 1.5);
   margin-bottom: calc(var(--spacing-unit) * 0.5);
@@ -581,13 +583,11 @@ margin-top: var(--spacing-unit);
 
 
 /* --- Installation Block --- */
-/* Keep Installation block styles as they were (using ExpandableOutput) */
 .block-type-installation .block-content-area {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 2);
 }
-/* ... (rest of installation styles remain the same) ... */
 .installation-content { font-size: 0.9rem; }
 .installation-content .install-message {
   display: flex;
@@ -649,7 +649,6 @@ font-size: 0.9rem;
   justify-content: flex-start;
   margin-top: calc(var(--spacing-unit) * 1.5);
 }
-/* ... (rest of block-actions-area styles remain the same) ... */
 .block-actions-area button {
   background-color: var(--bg-tertiary);
   border: 1px solid var(--border-color);
@@ -669,6 +668,3 @@ color: var(--text-primary);
 .block-actions-area button.debug:hover:not(:disabled) { background-color: rgba(var(--warning-color), 0.15); border-color: rgba(var(--warning-color), 0.5); }
 .block-actions-area button.explain { color: var(--info-color); border-color: rgba(var(--info-color), 0.3); }
 .block-actions-area button.explain:hover:not(:disabled) { background-color: rgba(var(--info-color), 0.15); border-color: rgba(var(--info-color), 0.5); }
-
-
-/* Đang thi công ....*/

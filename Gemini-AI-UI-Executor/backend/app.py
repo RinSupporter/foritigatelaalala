@@ -15,6 +15,9 @@ import traceback # Log err chi tiet
 import json
 import tempfile
 import stat # Cho chmod
+from netmiko import ConnectHandler
+from netmiko import NetmikoTimeoutException, NetmikoAuthenticationException
+from paramiko.ssh_exception import SSHException # Sua import SSHException tu paramiko
 
 # Tai bien .env o goc
 load_dotenv(dotenv_path='../.env')
@@ -24,7 +27,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 
 # --- Cau hinh Gemini ---
-GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY') # Api key mac dinh, hoac tu ui
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 
 # --- Anh xa Safety Settings (KHONG DOI) ---
 SAFETY_SETTINGS_MAP = {
@@ -40,7 +43,7 @@ SAFETY_SETTINGS_MAP = {
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
         {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
     ],
-    "BLOCK_MEDIUM_AND_ABOVE": [ # Mac dinh
+    "BLOCK_MEDIUM_AND_ABOVE": [
         {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
         {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
         {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
@@ -58,7 +61,7 @@ SAFETY_SETTINGS_MAP = {
 def get_os_name(platform_str):
     if platform_str == "win32": return "windows"
     if platform_str == "darwin": return "macos"
-    return "linux" # Ko win, ko mac -> linux
+    return "linux"
 
 # Helper anh xa ext sang ten ngon ngu
 def get_language_name(file_ext):
@@ -77,34 +80,38 @@ def get_language_name(file_ext):
     if ext_lower == 'sql': return 'SQL'
     if ext_lower == 'fortios': return 'FortiOS CLI'
     if ext_lower == 'conf': return 'Config File (FortiOS)'
-    # Them ngon ngu khac neu can
-    return f'file .{ext_lower}' # Mac dinh
+    return f'file .{ext_lower}'
 
 # Ham tao prompt yeu cau Gemini sinh code/lenh
 def create_prompt(user_input, backend_os_name, target_os_name, file_type):
     file_extension = ""
     file_type_description = ""
-    # Xu ly file_type_input co the la ten file hoac chi extension
     if file_type and '.' in file_type:
         file_extension = file_type.split('.')[-1].lower()
         file_type_description = f"một file có tên `{file_type}`"
     elif file_type:
         file_extension = file_type.lower()
         file_type_description = f"một file loại `.{file_extension}` ({get_language_name(file_extension)})"
-    else: # Mac dinh la python
+    else:
         file_extension = "py"
         file_type_description = f"một script Python (`.{file_extension}`)"
 
-    # Dam bao co file_extension hop le de dung lam tag code block
     code_block_tag = file_extension if file_extension and file_extension.isalnum() else 'code'
 
-    # Dac biet cho FortiGate
-    is_fortigate_request = "fortigate" in user_input.lower() or "fortios" in user_input.lower()
-    if is_fortigate_request and file_extension in ['txt', 'conf', 'text', 'cli', 'fortios', 'log']: # Các ext phổ biến cho config FortiGate
+    is_target_fortios = target_os_name.lower() == 'fortios'
+    is_fortigate_request_context = "fortigate" in user_input.lower() or "fortios" in user_input.lower() or is_target_fortios
+
+    if is_target_fortios and file_extension in ['txt', 'conf', 'cli', 'fortios', 'log']:
+        code_block_tag = 'fortios'
+        file_type_description = f"các lệnh FortiOS CLI (thường lưu dưới dạng `.{file_extension}` hoặc tương tự, để chạy trên FortiGate)"
+    elif is_fortigate_request_context and file_extension in ['txt', 'conf', 'cli', 'fortios', 'log']:
         code_block_tag = 'fortios'
         file_type_description = f"các lệnh FortiOS CLI (thường lưu dưới dạng `.{file_extension}` hoặc tương tự)"
-    
-    prompt = f"""
+    elif file_extension == 'fortios':
+        code_block_tag = 'fortios'
+        file_type_description = f"các lệnh FortiOS CLI (để chạy trên FortiGate)"
+
+    prompt = rf"""
 Bạn là một trợ lý AI chuyên tạo mã nguồn hoặc các dòng lệnh để thực thi các tác vụ trên máy tính hoặc thiết bị mạng dựa trên yêu cầu của người dùng.
 **Môi trường Backend:** Máy chủ đang chạy {backend_os_name}.
 **Mục tiêu Người dùng:** Tạo mã/lệnh phù hợp để lưu vào **{file_type_description}** và chạy trên hệ điều hành **{target_os_name}** hoặc thiết bị chuyên dụng như **FortiGate Firewall**.
@@ -125,15 +132,15 @@ Bạn là một trợ lý AI chuyên tạo mã nguồn hoặc các dòng lệnh 
     *   Đối với Python, đảm bảo tương thích Python 3.
     *   Đối với Shell, ưu tiên cú pháp tương thích `bash`.
     *   Đối với Batch/PowerShell, đảm bảo cú pháp Windows hợp lệ.
-6.  Nếu là các lệnh CLI cho thiết bị (ví dụ: FortiGate):
+6.  Nếu là các lệnh CLI cho thiết bị (ví dụ: FortiGate, mục tiêu là `{target_os_name}`):
     *   Cung cấp các lệnh cần thiết để đạt được mục tiêu.
     *   Các lệnh phải chính xác và theo đúng cú pháp của thiết bị.
     *   Ví dụ, để vào mode config trên FortiGate là `config system interface`, sau đó là các lệnh `edit`, `set`, `next`, `end`.
     *   Đối với yêu cầu trích xuất cấu hình FortiGate, hãy bao gồm các lệnh `show full-configuration` cho từng mục cần thiết (ví dụ: `config firewall policy`, `config firewall address`, `config firewall service custom`, v.v.) và kết thúc mỗi mục bằng `end`.
 7.  LUÔN LUÔN có cơ chế thông báo kết quả của code (ví dụ: if else) nếu là script, hoặc cung cấp các lệnh show/get để xác nhận nếu là CLI thiết bị.
-8.  Chú ý và xem xét xem loại file đó khi chạy có hỗ trợ tiếng việt không, nếu có thì hãy ghi kết quả trả về bằng tiếng việt có dấu, nếu không thì hãy ghi không dấu để tránh rối loạn ký tự trong output.  
+8.  Chú ý và xem xét xem loại file đó khi chạy có hỗ trợ tiếng việt không, nếu có thì hãy ghi kết quả trả về bằng tiếng việt có dấu, nếu không thì hãy ghi không dấu để tránh rối loạn ký tự trong output.
 
-**Ví dụ Yêu cầu (FortiGate):** Trích xuất cấu hình policy ID 10 và address object "Internal_LAN". (Mục tiêu: FortiGate, Loại file: .txt)
+**Ví dụ Yêu cầu (FortiGate):** Trích xuất cấu hình policy ID 10 và address object "Internal_LAN". (Mục tiêu: FortiOS, Loại file: .txt)
 **Mã trả về (Ví dụ cho FortiGate CLI):**
 ```fortios
 config firewall policy
@@ -182,11 +189,12 @@ exit /b 0
     return prompt
 
 # Ham tao prompt yeu cau Gemini danh gia code
-def create_review_prompt(code_to_review, language): # Nhan language la extension (py, sh, bat, v.v...)
+def create_review_prompt(code_to_review, language):
     language_name = get_language_name(language)
     code_block_tag = language if language and language.isalnum() else 'code'
+    if language == 'fortios': code_block_tag = 'fortios'
 
-    prompt = f"""
+    prompt = rf"""
 Bạn là một chuyên gia đánh giá code **{language_name}**. Hãy phân tích đoạn mã **{language_name}** sau đây và đưa ra nhận xét về:
 1.  **Độ an toàn:** Liệu mã có chứa các lệnh nguy hiểm không? Rủi ro? (Đặc biệt chú ý với script hệ thống như Batch/Shell/FortiOS CLI)
 2.  **Tính đúng đắn:** Mã có thực hiện đúng yêu cầu dự kiến không? Có lỗi cú pháp hoặc logic nào không?
@@ -204,15 +212,23 @@ Bạn là một chuyên gia đánh giá code **{language_name}**. Hãy phân tí
     return prompt
 
 # Ham tao prompt yeu cau Gemini go loi code
-def create_debug_prompt(original_prompt, failed_code, stdout, stderr, language): # Nhan language la extension
+def create_debug_prompt(original_prompt, failed_code, stdout, stderr, language):
     language_name = get_language_name(language)
     code_block_tag = language if language and language.isalnum() else 'code'
+    if language == 'fortios': code_block_tag = 'fortios'
 
-    prompt = f"""
+    # Xu ly case original_prompt, stdout, stderr co the la None hoac rong
+    processed_original_prompt = original_prompt if original_prompt and original_prompt.strip() else "(Không có hoặc prompt rỗng)"
+    processed_stdout = stdout if stdout and stdout.strip() else "(Không có output stdout)"
+    processed_stderr = stderr if stderr and stderr.strip() else "(Không có output stderr)"
+
+    prompt = rf"""
 Bạn là một chuyên gia gỡ lỗi **{language_name}**. Người dùng đã cố gắng chạy một đoạn mã **{language_name}** dựa trên yêu cầu ban đầu của họ, nhưng đã gặp lỗi.
 
-**1. Yêu cầu ban đầu của người dùng:**
-{original_prompt}
+**1. Yêu cầu ban đầu của người dùng (Prompt gốc đã tạo ra mã lỗi):**
+```text
+{processed_original_prompt}
+```
 
 **2. Đoạn mã {language_name} đã chạy và gây lỗi:**
 ```{code_block_tag}
@@ -220,22 +236,22 @@ Bạn là một chuyên gia gỡ lỗi **{language_name}**. Người dùng đã 
 ```
 
 **3. Kết quả Output (stdout) khi chạy mã:**
-```
-{stdout if stdout else "(Không có output)"}
+```text
+{processed_stdout}
 ```
 
 **4. Kết quả Lỗi (stderr) khi chạy mã:**
-```
-{stderr if stderr else "(Không có lỗi stderr)"}
+```text
+{processed_stderr}
 ```
 
 **Nhiệm vụ của bạn:**
-a.  **Phân tích:** Xác định nguyên nhân chính xác gây ra lỗi dựa trên `stderr`, `stdout` và mã nguồn **{language_name}**.
-b.  **Giải thích:** Cung cấp một giải thích rõ ràng, ngắn gọn về lỗi cho người dùng bằng Markdown.
+a.  **Phân tích:** Dựa vào **Yêu cầu ban đầu của người dùng**, `stderr`, `stdout` và mã nguồn **{language_name}**, hãy xác định nguyên nhân chính xác gây ra lỗi. Việc hiểu rõ **Yêu cầu ban đầu** là rất quan trọng để biết mục tiêu của người dùng.
+b.  **Giải thích:** Cung cấp một giải thích rõ ràng, ngắn gọn về lỗi cho người dùng bằng Markdown. Nếu có thể, hãy liên hệ giải thích với **Yêu cầu ban đầu của người dùng**.
 c.  **Đề xuất Hành động / Cài đặt:**
     *   **QUAN TRỌNG (CHỈ CHO PYTHON):** Nếu lỗi là `ModuleNotFoundError` (và ngôn ngữ là Python), hãy xác định tên module và đề xuất lệnh `pip install` trong khối ```bash ... ``` DUY NHẤT.
     *   Nếu lỗi do nguyên nhân khác (thiếu file, quyền, cú pháp sai, lệnh không tồn tại trong Batch/Shell/FortiOS CLI, cấu hình môi trường...) hoặc **ngôn ngữ không phải Python**, hãy đề xuất hành động người dùng cần làm thủ công. **KHÔNG đề xuất `pip install` cho ngôn ngữ không phải Python.**
-d.  **Sửa lỗi Code:** Nếu lỗi có thể sửa trực tiếp trong mã **{language_name}**, hãy cung cấp phiên bản mã đã sửa lỗi trong khối ```{code_block_tag} ... ``` CUỐI CÙNG. Nếu không thể sửa lỗi trong code, hãy giải thích tại sao.
+d.  **Sửa lỗi Code:** Nếu lỗi có thể sửa trực tiếp trong mã **{language_name}**, hãy cung cấp phiên bản mã đã sửa lỗi trong khối ```{code_block_tag} ... ``` CUỐI CÙNG. Mã sửa lỗi phải cố gắng đáp ứng **Yêu cầu ban đầu của người dùng**. Nếu không thể sửa lỗi trong code (ví dụ: lỗi do môi trường, thiếu file...), hãy giải thích tại sao.
 
 **QUAN TRỌNG:**
 *   Trả về phần giải thích và đề xuất hành động (bằng Markdown) trước.
@@ -248,12 +264,14 @@ d.  **Sửa lỗi Code:** Nếu lỗi có thể sửa trực tiếp trong mã **
     return prompt
 
 # Ham tao prompt yeu cau Gemini giai thich
-def create_explain_prompt(content_to_explain, context, language=None): # Nhan language la extension (optional)
+def create_explain_prompt(content_to_explain, context, language=None):
     prompt_header = "Bạn là một trợ lý AI giỏi giải thích các khái niệm kỹ thuật một cách đơn giản, dễ hiểu cho người dùng không chuyên."
     prompt_instruction = "\n\n**Yêu cầu:** Giải thích nội dung sau đây bằng tiếng Việt, sử dụng Markdown, tập trung vào ý nghĩa chính và những điều người dùng cần biết. Giữ cho giải thích ngắn gọn và rõ ràng. Bắt đầu trực tiếp bằng nội dung giải thích, không thêm lời dẫn."
     context_description = ""
     language_name = get_language_name(language) if language else "nội dung"
     code_block_tag = language if language and language.isalnum() else 'code'
+    if language == 'fortios': code_block_tag = 'fortios'
+
 
     try:
         if isinstance(content_to_explain, str) and content_to_explain.strip().startswith('{') and content_to_explain.strip().endswith('}'):
@@ -264,7 +282,7 @@ def create_explain_prompt(content_to_explain, context, language=None): # Nhan la
     except json.JSONDecodeError:
          content_to_explain_formatted = str(content_to_explain)
 
-    if context == 'code': # Su dung context 'code' chung
+    if context == 'code':
         context_description = f"Đây là một đoạn mã **{language_name}**:\n```{code_block_tag}\n{content_to_explain_formatted}\n```"
         prompt_instruction = f"\n\n**Yêu cầu:** Giải thích đoạn mã **{language_name}** này làm gì, mục đích chính của nó là gì, và tóm tắt các bước thực hiện chính (nếu có). Trả lời bằng tiếng Việt, sử dụng Markdown. Bắt đầu trực tiếp bằng nội dung giải thích."
     elif context == 'execution_result':
@@ -293,10 +311,10 @@ def create_explain_prompt(content_to_explain, context, language=None): # Nhan la
     elif context == 'installation_result':
         context_description = f"Đây là kết quả sau khi cài đặt một package Python:\n```json\n{content_to_explain_formatted}\n```"
         prompt_instruction = "\n\n**Yêu cầu:** Phân tích kết quả cài đặt package này. Cho biết việc cài đặt thành công hay thất bại, và giải thích ngắn gọn output/error từ pip. Trả lời bằng tiếng Việt, sử dụng Markdown. Bắt đầu trực tiếp bằng nội dung giải thích."
-    else: # Ngu canh mac dinh
+    else:
          context_description = f"Nội dung cần giải thích:\n```\n{content_to_explain_formatted}\n```"
 
-    full_prompt = f"{prompt_header}{context_description}{prompt_instruction}"
+    full_prompt = rf"{prompt_header}{context_description}{prompt_instruction}" # Su dung raw f-string
     return full_prompt
 
 # Ham goi Gemini API
@@ -304,16 +322,14 @@ def generate_response_from_gemini(full_prompt, model_config_param, is_for_review
     global GOOGLE_API_KEY
     ui_api_key = None
 
-    # Dam bao model_config_param la dict
     if not isinstance(model_config_param, dict):
         app.logger.warning(f"model_config nhan dc ko phai dict, ma la {type(model_config_param)}. Dung dict rong.")
         model_config_internal = {}
     else:
-        # Ban sao de ko thay doi dict goc
         model_config_internal = model_config_param.copy()
 
     try:
-        ui_api_key = model_config_internal.pop('api_key', None) # Dung dict da copy
+        ui_api_key = model_config_internal.pop('api_key', None)
         if ui_api_key and not ui_api_key.strip():
             ui_api_key = None
 
@@ -376,12 +392,11 @@ def generate_response_from_gemini(full_prompt, model_config_param, is_for_review
                  "review:", "analysis:", "đây là phân tích", "here is the analysis",
                  "giải thích và đề xuất:", "phân tích và đề xuất:",
                  "đây là giải thích", "here is the explanation", "giải thích:", "explanation:",
-                 "```text" # Khong can [thinking], [processing] nua vi co regex moi o duoi
+                 "```text"
              )
              first_meaningful_line = False
              for line in lines:
                  stripped_line_lower = line.strip().lower()
-                 # Loai bo dong chi co thinking/processing
                  if stripped_line_lower.startswith(("[thinking", "[processing")) and stripped_line_lower.endswith("]"):
                      continue
                  if not first_meaningful_line and any(stripped_line_lower.startswith(p) for p in prefixes_to_remove):
@@ -398,7 +413,7 @@ def generate_response_from_gemini(full_prompt, model_config_param, is_for_review
     except Exception as e:
         error_message = str(e)
         model_name_for_error = model_config_internal.get('model_name', 'unknown_model')
-        app.logger.error(f"Loi API Gemini ({model_name_for_error}): {error_message}", exc_info=True) # exc_info=True de log traceback
+        app.logger.error(f"Loi API Gemini ({model_name_for_error}): {error_message}", exc_info=True)
         if "API key not valid" in error_message:
              key_source = "giao diện" if ui_api_key else ".env"
              return f"Lỗi cấu hình: API key từ {key_source} không hợp lệ. Vui lòng kiểm tra."
@@ -409,7 +424,6 @@ def generate_response_from_gemini(full_prompt, model_config_param, is_for_review
         elif "Deadline Exceeded" in error_message or "timeout" in error_message.lower():
              return f"Lỗi mạng: Yêu cầu tới Gemini API bị quá thời gian (timeout). Vui lòng thử lại."
         elif "SAFETY" in error_message.upper():
-             # Lay chi tiet an toan hon
              details_match = re.search(r"Finish Reason: (\w+)", error_message)
              reason_detail = f" (Lý do: {details_match.group(1)})" if details_match else ""
              safety_ratings_match = re.search(r"Safety Ratings: \[(.+?)]", error_message, re.DOTALL)
@@ -424,7 +438,7 @@ def generate_response_from_gemini(full_prompt, model_config_param, is_for_review
             except Exception as reset_e:
                 app.logger.warning(f"Ko the reset API key global ve key .env: {reset_e}")
         elif ui_api_key and not GOOGLE_API_KEY:
-             pass # Neu chi co key UI, ko can reset
+             pass
 
 # Ham trich xuat khoi ma
 def extract_code_block(raw_text, requested_extension, user_input_for_context=""):
@@ -433,37 +447,38 @@ def extract_code_block(raw_text, requested_extension, user_input_for_context="")
     if requested_extension == 'sh': primary_tags.extend(['bash', 'shell'])
     if requested_extension == 'bat': primary_tags.append('batch')
     if requested_extension == 'ps1': primary_tags.append('powershell')
+    if requested_extension == 'fortios': primary_tags.extend(['cli', 'text'])
 
-    is_fortigate_request = "fortigate" in user_input_for_context.lower() or "fortios" in user_input_for_context.lower()
-    if is_fortigate_request and requested_extension in ['txt', 'conf', 'cli', 'text', 'log', 'fortios']:
-        if 'fortios' not in primary_tags: primary_tags.insert(0, 'fortios') # Uu tien fortios
+    is_fortigate_request = "fortigate" in user_input_for_context.lower() or "fortios" in user_input_for_context.lower() or requested_extension == 'fortios'
+
+    if is_fortigate_request:
+        if 'fortios' not in primary_tags: primary_tags.insert(0, 'fortios')
+        if requested_extension in ['txt', 'conf', 'cli', 'text', 'log']:
+             if 'fortios' not in primary_tags: primary_tags.insert(0, 'fortios')
         if 'cli' not in primary_tags: primary_tags.append('cli')
-        if 'text' not in primary_tags: primary_tags.append('text') # Gemini co the dung ```text
+        if 'text' not in primary_tags: primary_tags.append('text')
 
     unique_primary_tags = []
     for tag in primary_tags:
         if tag and tag not in unique_primary_tags:
             unique_primary_tags.append(tag)
-    
+
     app.logger.info(f"Trich xuat code voi tags: {unique_primary_tags} cho ext: .{requested_extension}")
 
     for tag in unique_primary_tags:
-        # Regex chap nhan tag va co the co them info sau tag tren cung dong (vd ```python filename.py)
-        # Sau do la newline, noi dung code, newline va ``` (tim khoi cuoi cung)
         pattern_strict = r"```" + re.escape(tag) + r"(?:[^\S\n].*?)?\s*\n([\s\S]*?)\n```"
-        pattern_flexible = r"```" + re.escape(tag) + r"(?:[^\S\n].*?)?\s*([\s\S]*?)\s*```" # Ko bat buoc newline
+        pattern_flexible = r"```" + re.escape(tag) + r"(?:[^\S\n].*?)?\s*([\s\S]*?)\s*```"
 
         for p_idx, pattern_str in enumerate([pattern_strict, pattern_flexible]):
             try:
                 matches = list(re.finditer(pattern_str, raw_text, re.IGNORECASE))
                 if matches:
                     app.logger.info(f"Tim thay khoi code voi tag: '{tag}' (pattern {p_idx}).")
-                    return matches[-1].group(1).strip() # Lay khoi cuoi
+                    return matches[-1].group(1).strip()
             except re.error as re_err:
                 app.logger.error(f"Loi Regex voi pattern '{pattern_str}' cho tag '{tag}': {re_err}")
                 continue
 
-    # Neu ko co tag cu the, thu tim khoi ``` chung (khoi cuoi)
     generic_matches = list(re.finditer(r"```(?:([\w\-\./\+]+)[^\S\n]*)?\s*\n([\s\S]*?)\n```", raw_text))
     if not generic_matches:
         generic_matches = list(re.finditer(r"```(?:([\w\-\./\+]+)[^\S\n]*)?\s*([\s\S]*?)\s*```", raw_text))
@@ -472,7 +487,7 @@ def extract_code_block(raw_text, requested_extension, user_input_for_context="")
         last_block_match = generic_matches[-1]
         lang_tag_found = last_block_match.group(1)
         code_content = last_block_match.group(2).strip()
-        
+
         if lang_tag_found:
             lang_tag_found = lang_tag_found.strip().lower()
             app.logger.warning(f"Tim thay khoi code chung voi hint '```{lang_tag_found}```. Dung cho '.{requested_extension}'.")
@@ -489,7 +504,7 @@ def extract_code_block(raw_text, requested_extension, user_input_for_context="")
 
     lines = raw_text.splitlines()
     is_likely_direct_code = (
-        len(lines) < 30 and # Tang gioi han len chut
+        len(lines) < 30 and
         not any(kw in raw_text.lower() for kw in ["response:", "here's", "this will", "explanation:", "note:", "```"]) and
         not raw_text.startswith("I am a large language model")
     )
@@ -498,7 +513,7 @@ def extract_code_block(raw_text, requested_extension, user_input_for_context="")
         return raw_text.strip()
 
     app.logger.warning(f"Ko tim thay khoi code cho '.{requested_extension}' hoac khoi chung. Tra ve raw text. Raw: '{raw_text[:100]}...'")
-    return raw_text.strip() # Fallback cuoi
+    return raw_text.strip()
 
 # Endpoint sinh code
 @app.route('/api/generate', methods=['POST'])
@@ -513,23 +528,37 @@ def handle_generate():
         return jsonify({"error": "Vui lòng nhập yêu cầu."}), 400
 
     backend_os_name = get_os_name(sys.platform)
-    target_os_name = backend_os_name if target_os_input == 'auto' else target_os_input
+    target_os_name = target_os_input if target_os_input.lower() == 'fortios' else \
+                     (backend_os_name if target_os_input == 'auto' else target_os_input)
 
-    file_extension = file_type_input.split('.')[-1].lower() if '.' in file_type_input else file_type_input.lower()
-    if not file_extension or not file_extension.isalnum():
-        file_extension = 'py' # Default neu rong/ko hop le
+    if '.' in file_type_input:
+        file_extension = file_type_input.split('.')[-1].lower()
+    else:
+        file_extension = file_type_input.lower()
+
+    if not file_extension or not (file_extension.isalnum() or file_extension == 'fortios'):
+        file_extension = 'py'
 
     full_prompt = create_prompt(user_input, backend_os_name, target_os_name, file_type_input)
-    # Su dung model_config (dict) thay vi model_config.copy() vi generate_response_from_gemini da tu copy
     raw_response = generate_response_from_gemini(full_prompt, model_config, is_for_review_or_debug=False)
-
 
     app.logger.info("-" * 20 + " RAW GEMINI RESPONSE (Generate) " + "-" * 20)
     app.logger.info(raw_response)
     app.logger.info("-" * 60)
 
     if raw_response and not raw_response.startswith("Lỗi"):
-        generated_code = extract_code_block(raw_response, file_extension, user_input_for_context=user_input)
+        ext_for_extraction = file_extension
+        if target_os_name.lower() == 'fortios' and file_extension in ['txt', 'conf', 'cli', 'log']:
+            ext_for_extraction = 'fortios'
+        elif file_extension == 'fortios':
+             ext_for_extraction = 'fortios'
+
+        generated_code = extract_code_block(raw_response, ext_for_extraction, user_input_for_context=user_input)
+
+        effective_generated_type = file_extension
+        if ext_for_extraction == 'fortios':
+            effective_generated_type = 'fortios'
+
 
         is_likely_raw_text = (generated_code == raw_response) and not generated_code.strip().startswith("```")
 
@@ -542,7 +571,7 @@ def handle_generate():
             detected_dangerous = [kw for kw in potentially_dangerous if kw in code_lower]
             if detected_dangerous:
                 app.logger.warning(f"Canh bao: Ma tao ra chua tu khoa nguy hiem: {detected_dangerous}")
-            return jsonify({"code": generated_code, "generated_for_type": file_extension})
+            return jsonify({"code": generated_code, "generated_for_type": effective_generated_type})
     elif raw_response:
         status_code = 400 if ("Lỗi cấu hình" in raw_response or "Lỗi: Phản hồi bị chặn" in raw_response) else 500
         return jsonify({"error": raw_response}), status_code
@@ -574,6 +603,106 @@ def handle_review():
     else:
         return jsonify({"error": "Không thể đánh giá mã hoặc có lỗi không xác định xảy ra."}), 500
 
+# Ham thuc thi lenh FortiGate
+def execute_fortigate_commands(commands_string, fortigate_config):
+    if not fortigate_config or not isinstance(fortigate_config, dict):
+        return {"output": "", "error": "Thiếu cấu hình FortiGate.", "return_code": -1}
+
+    host = fortigate_config.get('ipHost')
+    username = fortigate_config.get('username')
+    password = fortigate_config.get('password', '')
+    port = fortigate_config.get('portSsh', '22')
+
+    if not host or not username:
+        return {"output": "", "error": "Thiếu IP/Hostname hoặc Username cho FortiGate.", "return_code": -1}
+
+    try: port = int(port)
+    except ValueError:
+        return {"output": "", "error": f"Port SSH không hợp lệ: {port}", "return_code": -1}
+
+    device = {
+        'device_type': 'fortinet',
+        'host': host,
+        'username': username,
+        'password': password,
+        'port': port,
+        'session_log': 'logs/netmiko_session.log',
+        'global_delay_factor': 2,
+        'conn_timeout': 30,
+        'auth_timeout': 30,
+        'banner_timeout': 30,
+    }
+
+    output_str = ""
+    error_str = ""
+    return_code = 0
+
+    commands_list = [cmd.strip() for cmd in commands_string.splitlines() if cmd.strip() and not cmd.strip().startswith('#')]
+    if not commands_list:
+        return {"output": "Không có lệnh hợp lệ để thực thi.", "error": "", "return_code": 0}
+
+    try:
+        app.logger.info(f"Dang ket noi toi FortiGate: {host}:{port} voi user: {username}")
+        with ConnectHandler(**device) as net_connect:
+            app.logger.info("Ket noi FortiGate thanh cong.")
+
+            is_config_mode_likely = any(cmd.startswith(("config ", "edit ", "set ", "unset ", "append ", "delete ")) for cmd in commands_list)
+
+            if is_config_mode_likely:
+                app.logger.info("Phat hien lenh config, su dung send_config_set.")
+                output_str = net_connect.send_config_set(commands_list, exit_config_mode=True, delay_factor=2, cmd_verify=False)
+
+                if "Command fail" in output_str or "error" in output_str.lower() or "Invalid" in output_str:
+                    if not (len(commands_list) == 1 and commands_list[0].strip() == output_str.strip()):
+                        error_str = output_str
+                        return_code = 1
+                        match_error_code = re.search(r"Return code (\-?\d+)", output_str)
+                        if match_error_code:
+                            try: return_code = int(match_error_code.group(1))
+                            except ValueError: pass
+                        app.logger.warning(f"Loi khi thuc thi config tren FortiGate: {output_str}")
+                else:
+                    app.logger.info(f"Ket qua config FortiGate:\n{output_str}")
+            else:
+                app.logger.info("Chi co lenh show/get/diagnose, su dung send_command cho tung lenh.")
+                full_output = []
+                for cmd in commands_list:
+                    prompt_pattern_str = r"\(.+?\) # $"
+                    current_output = net_connect.send_command(cmd, delay_factor=2, expect_string=prompt_pattern_str if re.search(prompt_pattern_str, net_connect.base_prompt) else None)
+                    full_output.append(f"$ {cmd}\n{current_output}\n")
+                    if "Command fail" in current_output or "command_cli_error" in current_output or "Unknown action" in current_output or "Invalid input" in current_output:
+                         error_str += f"Loi khi chay '{cmd}': {current_output}\n"
+                         return_code = 1
+                         match_error_code = re.search(r"Return code (\-?\d+)", current_output)
+                         if match_error_code:
+                            try: return_code = int(match_error_code.group(1))
+                            except ValueError: pass
+                output_str = "\n".join(full_output)
+                if return_code == 0:
+                    app.logger.info(f"Ket qua lenh FortiGate:\n{output_str}")
+                else:
+                    app.logger.warning(f"Loi khi thuc thi lenh FortiGate: {error_str}")
+
+    except NetmikoTimeoutException as e:
+        error_str = f"Lỗi Timeout khi kết nối hoặc thực thi lệnh trên FortiGate: {e}"
+        return_code = -101
+        app.logger.error(error_str)
+    except NetmikoAuthenticationException as e:
+        error_str = f"Lỗi xác thực với FortiGate (sai Username/Password?): {e}"
+        return_code = -102
+        app.logger.error(error_str)
+    except SSHException as e: # Bat SSHException tu paramiko
+        error_str = f"Lỗi SSH khi kết nối FortiGate (Port SSH đúng? Firewall?): {e}"
+        return_code = -103
+        app.logger.error(error_str)
+    except Exception as e:
+        error_str = f"Lỗi không xác định khi thực thi lệnh FortiGate: {e}"
+        return_code = -100
+        app.logger.error(error_str, exc_info=True)
+
+    return {"output": output_str, "error": error_str, "return_code": return_code}
+
+
 # Endpoint thuc thi code
 @app.route('/api/execute', methods=['POST'])
 def handle_execute():
@@ -581,6 +710,7 @@ def handle_execute():
     code_to_execute = data.get('code')
     run_as_admin = data.get('run_as_admin', False)
     file_type_requested = data.get('file_type', 'py')
+    fortigate_config = data.get('fortigate_config')
 
     if not code_to_execute:
         return jsonify({"error": "Không có mã nào để thực thi."}), 400
@@ -594,25 +724,38 @@ def handle_execute():
          file_extension = file_type_requested.split('.')[-1].lower()
     else:
          file_extension = file_type_requested.lower()
-    if not file_extension or not file_extension.isalnum(): file_extension = 'py'
 
-    # FortiGate CLI commands are not "executed" directly by the backend server's OS
+    if not file_extension or not (file_extension.isalnum() or file_extension == 'fortios'):
+        file_extension = 'py'
+
+
     if file_extension == 'fortios':
-        app.logger.info(f"Nhan dc lenh FortiOS CLI (.{file_extension}). Day la noi dung se duoc hien thi/luu, ko thuc thi truc tiep.")
-        return jsonify({
-            "message": "Đã nhận lệnh FortiOS CLI. Lệnh này không được thực thi trực tiếp bởi backend.",
-            "output": code_to_execute, # Tra lai noi dung lenh
-            "error": "",
-            "return_code": 0, # Gia su thanh cong vi chi la hien thi
-            "executed_file_type": file_extension,
-            "codeThatFailed": "" # Khong co code that bai theo nghia thuc thi
-        })
+        app.logger.info(f"Nhan dc lenh FortiOS CLI (.{file_extension}). Chuan bi thuc thi qua Netmiko.")
+        if not fortigate_config:
+            app.logger.error("Thieu thong tin fortigate_config de thuc thi lenh FortiOS.")
+            return jsonify({
+                "message": "Lỗi: Thiếu thông tin cấu hình FortiGate.",
+                "output": "", "error": "Thiếu fortigate_config.", "return_code": -1,
+                "executed_file_type": file_extension, "codeThatFailed": code_to_execute
+            }), 400
 
+        fgt_result = execute_fortigate_commands(code_to_execute, fortigate_config)
+
+        response_message = "Gửi lệnh FortiOS CLI thành công." if fgt_result["return_code"] == 0 and not fgt_result["error"] else \
+                           "Gửi lệnh FortiOS CLI hoàn tất (có thể có lỗi)."
+
+        return jsonify({
+            "message": response_message,
+            "output": fgt_result["output"],
+            "error": fgt_result["error"],
+            "return_code": fgt_result["return_code"],
+            "executed_file_type": file_extension,
+            "codeThatFailed": code_to_execute
+        })
 
     app.logger.info(f"--- CANH BAO: Chuan bi thuc thi code file .{file_extension} (Admin/Root: {run_as_admin}) ---")
 
     try:
-        # Luu y newline='' de tranh them dong trong tren Windows
         with tempfile.NamedTemporaryFile(mode='w', suffix=f'.{file_extension}', delete=False, encoding='utf-8', newline='') as temp_file:
             temp_file_path = temp_file.name
             temp_file.write(code_to_execute)
@@ -626,7 +769,7 @@ def handle_execute():
             except Exception as chmod_e:
                 app.logger.error(f"Ko the cap quyen thuc thi file tam: {chmod_e}")
 
-        interpreter_path = sys.executable # Mac dinh la python
+        interpreter_path = sys.executable
         if file_extension == 'py':
             command = [interpreter_path, temp_file_path]
         elif file_extension == 'bat' and backend_os == 'windows':
@@ -635,10 +778,10 @@ def handle_execute():
             command = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', temp_file_path]
         elif file_extension == 'sh' and backend_os in ['linux', 'macos']:
              command = ['bash', temp_file_path]
-        elif backend_os == 'windows': # Fallback cho Windows
+        elif backend_os == 'windows':
             command = ['cmd', '/c', temp_file_path]
             app.logger.warning(f"Loai file '.{file_extension}' ko xd ro tren Windows, thu chay bang cmd /c.")
-        elif backend_os in ['linux', 'macos']: # Fallback cho Unix-like
+        elif backend_os in ['linux', 'macos']:
              command = ['bash', temp_file_path]
              app.logger.warning(f"Loai file '.{file_extension}' ko xd ro tren {backend_os}, thu chay bang bash.")
         else:
@@ -654,7 +797,7 @@ def handle_execute():
                 except Exception as admin_check_e:
                     admin_warning = f"Ko the check admin ({admin_check_e}). Thuc thi quyen thuong."
                     app.logger.error(f"{admin_warning}")
-            elif backend_os in ["linux", "darwin"]: # darwin la macos
+            elif backend_os in ["linux", "darwin"]:
                 try:
                     subprocess.run(['which', 'sudo'], check=True, capture_output=True, text=True, errors='ignore')
                     app.logger.info("Them 'sudo'. Co the can nhap pass console backend.")
@@ -671,11 +814,11 @@ def handle_execute():
 
         app.logger.info(f"Chuan bi chay lenh: {' '.join(shlex.quote(str(c)) for c in command)}")
         process_env = os.environ.copy()
-        process_env["PYTHONIOENCODING"] = "utf-8" # Dam bao output tieng Viet (neu script in ra)
+        process_env["PYTHONIOENCODING"] = "utf-8"
 
         result = subprocess.run(
-            command, capture_output=True, encoding='utf-8', errors='replace', # errors='replace' de tranh UnicodeDecodeError
-            timeout=60, check=False, env=process_env, text=True # text=True dam bao stdout/err la str
+            command, capture_output=True, encoding='utf-8', errors='replace',
+            timeout=60, check=False, env=process_env, text=True
         )
         output = result.stdout
         error_output = result.stderr
@@ -721,7 +864,7 @@ def handle_execute():
 @app.route('/api/debug', methods=['POST'])
 def handle_debug():
     data = request.get_json()
-    original_prompt = data.get('prompt', '(Không có prompt gốc)')
+    original_prompt = data.get('prompt', '(Không có prompt gốc)') # Nhan prompt goc
     failed_code = data.get('code')
     stdout = data.get('stdout', '')
     stderr = data.get('stderr', '')
@@ -734,6 +877,7 @@ def handle_debug():
     language_extension = file_type.split('.')[-1].lower() if '.' in file_type else file_type.lower()
     if not language_extension: language_extension = 'py'
 
+    # Truyen original_prompt vao create_debug_prompt
     full_prompt = create_debug_prompt(original_prompt, failed_code, stdout, stderr, language_extension)
     raw_response = generate_response_from_gemini(full_prompt, model_config, is_for_review_or_debug=True)
 
@@ -742,8 +886,8 @@ def handle_debug():
         corrected_code = None
         suggested_package = None
 
-        if language_extension == 'py': # Chi tim pip install cho Python
-            install_match = re.search(r"```bash\s*pip install\s+([\w\-==\.\+\[\]]+)\s*```", explanation_part, re.IGNORECASE) # Cho phep extras [ ], version ==
+        if language_extension == 'py':
+            install_match = re.search(r"```bash\s*pip install\s+([\w\-==\.\+\[\]]+)\s*```", explanation_part, re.IGNORECASE)
             if install_match:
                 suggested_package = install_match.group(1).strip()
                 app.logger.info(f"Debug (Python): Phat hien de xuat package: {suggested_package}")
@@ -756,18 +900,18 @@ def handle_debug():
         if language_extension == 'sh': patterns_to_try_tags.extend(['bash', 'shell'])
         if language_extension == 'bat': patterns_to_try_tags.append('batch')
         if language_extension == 'ps1': patterns_to_try_tags.append('powershell')
-        if language_extension == 'fortios': patterns_to_try_tags.extend(['cli', 'text']) # Cho fortios
+        if language_extension == 'fortios': patterns_to_try_tags.extend(['fortios', 'cli', 'text'])
 
         unique_debug_tags = []
         for tag_val in patterns_to_try_tags:
             if tag_val and tag_val not in unique_debug_tags:
                 unique_debug_tags.append(tag_val)
-        if 'code' not in unique_debug_tags: unique_debug_tags.append('code') # Luon thu tag chung
+        if 'code' not in unique_debug_tags: unique_debug_tags.append('code')
 
         for lang_tag_for_pattern in unique_debug_tags:
             pattern_strict = r"```" + re.escape(lang_tag_for_pattern) + r"(?:[^\S\n].*?)?\s*\n([\s\S]*?)\n```"
             pattern_flexible = r"```" + re.escape(lang_tag_for_pattern) + r"(?:[^\S\n].*?)?\s*([\s\S]*?)\s*```"
-            if lang_tag_for_pattern == 'code': # Tim ``` ```
+            if lang_tag_for_pattern == 'code':
                  pattern_strict = r"```\s*\n([\s\S]*?)\n```"
                  pattern_flexible = r"```\s*([\s\S]*?)\s*```"
 
@@ -798,7 +942,7 @@ def handle_debug():
             "explanation": explanation_part if explanation_part else "(Không có giải thích)",
             "corrected_code": corrected_code,
             "suggested_package": suggested_package,
-            "original_language": language_extension # Tra ve ngon ngu goc
+            "original_language": language_extension
         })
     elif raw_response:
         status_code = 400 if ("Lỗi cấu hình" in raw_response or "Lỗi: Phản hồi bị chặn" in raw_response) else 500
@@ -815,14 +959,14 @@ def handle_install_package():
     if not package_name:
         return jsonify({"error": "Thiếu tên package để cài đặt."}), 400
 
-    if not re.fullmatch(r"^[a-zA-Z0-9\-_==\.\+\[\]]+$", package_name.replace('[','').replace(']','')): # Cho phep version, extras
+    if not re.fullmatch(r"^[a-zA-Z0-9\-_==\.\+\[\]]+$", package_name.replace('[','').replace(']','')):
         app.logger.warning(f"Ten package ko hop le bi tu choi: {package_name}")
         return jsonify({"success": False, "error": f"Tên package không hợp lệ: {package_name}"}), 400
 
     app.logger.info(f"--- Chuan bi cai dat package: {package_name} ---")
     try:
         pip_command_parts = [sys.executable, '-m', 'pip', 'install'] + shlex.split(package_name)
-        command = [part for part in pip_command_parts if part] # Loai bo phan tu rong
+        command = [part for part in pip_command_parts if part]
     except Exception as parse_err:
         app.logger.error(f"Ko the phan tich ten package: {package_name} - {parse_err}")
         return jsonify({"success": False, "error": f"Tên package không hợp lệ: {package_name}"}), 400
@@ -868,7 +1012,7 @@ def handle_explain():
     content_to_explain = data.get('content')
     context = data.get('context', 'unknown')
     model_config = data.get('model_config', {})
-    file_type = data.get('file_type') # Extension: py, sh, bat...
+    file_type = data.get('file_type')
 
     if not content_to_explain:
         return jsonify({"error": "Không có nội dung để giải thích."}), 400
@@ -879,7 +1023,7 @@ def handle_explain():
     else:
         content_to_explain = str(content_to_explain)
 
-    explain_context = 'code' if context == 'python_code' else context # 'python_code' la context cu
+    explain_context = 'code' if context == 'python_code' else context
     language_for_prompt = file_type if explain_context == 'code' else None
 
     full_prompt = create_explain_prompt(content_to_explain, explain_context, language=language_for_prompt)
@@ -894,23 +1038,21 @@ def handle_explain():
         return jsonify({"error": "Không thể tạo giải thích hoặc có lỗi không xác định xảy ra."}), 500
 
 if __name__ == '__main__':
-    # Cau hinh logging cua Flask
-    if not app.debug: # Chi cau hinh khi ko phai debug mode (vi debug mode co the config rieng)
+    if not app.debug:
         import logging
         from logging.handlers import RotatingFileHandler
-        # Log vao file
         if not os.path.exists('logs'):
             os.mkdir('logs')
-        file_handler = RotatingFileHandler('logs/gemini_executor.log', maxBytes=10240, backupCount=10)
+        file_handler = RotatingFileHandler('logs/gemini_executor.log', maxBytes=102400, backupCount=10)
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
         ))
-        file_handler.setLevel(logging.INFO) # Co the set DEBUG de xem chi tiet hon
+        file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
         app.logger.setLevel(logging.INFO)
 
     app.logger.info('Backend Gemini UI Executor dang khoi dong...')
-    print("Backend đang chạy tại http://localhost:5001") # Van giu print nay cho console
+    print("Backend đang chạy tại http://localhost:5001")
     if sys.platform == "win32":
         try:
             is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0

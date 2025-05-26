@@ -14,7 +14,7 @@ export interface ExecutionResult {
   return_code: number;
   codeThatFailed?: string;
   warning?: string;
-  executed_file_type?: string;
+  executed_file_type?: string; // py, sh, bat, fortios
 }
 
 export interface ReviewResult {
@@ -36,7 +36,7 @@ export interface DebugResult {
     corrected_code: string | null;
     suggested_package?: string;
     error?: string;
-    original_language?: string;
+    original_language?: string; // py, sh, bat, fortios
 }
 
 export interface ExplainResult {
@@ -52,7 +52,7 @@ export interface InstallationResult {
     package_name: string;
 }
 
-export type TargetOS = 'auto' | 'windows' | 'linux' | 'macos';
+export type TargetOS = 'auto' | 'windows' | 'linux' | 'macos' | 'fortios'; // Them fortios
 
 export interface FortiGateConfig {
   ipHost: string;
@@ -67,19 +67,23 @@ export interface ConversationBlock {
     id: string;
     timestamp: string;
     isNew?: boolean;
-    generatedType?: string; // .py, .bat, .sh, fortigatecli
+    generatedType?: string; // .py, .bat, .sh, fortios
 }
 // ---------------------------------------------
 
 const MODEL_NAME_STORAGE_KEY = 'geminiExecutorModelName';
 const FORTIGATE_CONFIG_STORAGE_KEY = 'geminiExecutorFortiGateConfig';
+const TARGET_OS_STORAGE_KEY = 'geminiExecutorTargetOS';
+const FILE_TYPE_STORAGE_KEY = 'geminiExecutorFileType';
+const CUSTOM_FILE_NAME_STORAGE_KEY = 'geminiExecutorCustomFileName';
+
 const NEW_BLOCK_ANIMATION_DURATION = 500;
 
 function App() {
   const [prompt, setPrompt] = useState<string>('');
   const [conversation, setConversation] = useState<Array<ConversationBlock>>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isExecuting, setIsExecuting] = useState<boolean>(false); // Chung cho file & FGT
+  const [isExecuting, setIsExecuting] = useState<boolean>(false); 
   const [isReviewing, setIsReviewing] = useState<boolean>(false);
   const [isDebugging, setIsDebugging] = useState<boolean>(false);
   const [isInstalling, setIsInstalling] = useState<boolean>(false);
@@ -101,11 +105,13 @@ function App() {
   const [runAsAdmin, setRunAsAdmin] = useState<boolean>(false);
   const [uiApiKey, setUiApiKey] = useState<string>('');
   const [useUiApiKey, setUseUiApiKey] = useState<boolean>(false);
-  const [targetOs, setTargetOs] = useState<TargetOS>('auto');
-  const [fileType, setFileType] = useState<string>('py');
-  const [customFileName, setCustomFileName] = useState<string>('');
+  
+  const [targetOs, setTargetOs] = useState<TargetOS>(() => (localStorage.getItem(TARGET_OS_STORAGE_KEY) as TargetOS) || 'auto');
+  const [fileType, setFileType] = useState<string>(localStorage.getItem(FILE_TYPE_STORAGE_KEY) || 'py');
+  const [customFileName, setCustomFileName] = useState<string>(localStorage.getItem(CUSTOM_FILE_NAME_STORAGE_KEY) || '');
 
-   useEffect(() => { // Xoa isNew
+
+   useEffect(() => { 
         const timers: NodeJS.Timeout[] = [];
         conversation.filter(b => b.isNew).forEach(block => {
             const timer = setTimeout(() => {
@@ -120,16 +126,36 @@ function App() {
 
   const handleConfigChange = useCallback((e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked; // for checkbox
+    const checked = (e.target as HTMLInputElement).checked; 
 
     if (name === 'targetOs') {
-      setTargetOs(value as TargetOS);
-      if (fileType !== 'other') setFileType(value === 'windows' ? 'bat' : (value === 'auto' ? 'py' : 'sh'));
+      const newTargetOs = value as TargetOS;
+      setTargetOs(newTargetOs);
+      localStorage.setItem(TARGET_OS_STORAGE_KEY, newTargetOs);
+      if (newTargetOs === 'fortios') {
+          if (fileType !== 'fortios' && fileType !== 'txt') { // Chi doi neu file type hien tai ko phai la fortios/txt
+             setFileType('fortios');
+             localStorage.setItem(FILE_TYPE_STORAGE_KEY, 'fortios');
+          }
+      } else if (fileType !== 'other' && fileType !== 'fortios') { // Ko doi neu la custom hoac fortios
+          const defaultFileType = newTargetOs === 'windows' ? 'bat' : (newTargetOs === 'auto' ? 'py' : 'sh');
+          setFileType(defaultFileType);
+          localStorage.setItem(FILE_TYPE_STORAGE_KEY, defaultFileType);
+      }
     } else if (name === 'fileType') {
       setFileType(value);
-      if (value !== 'other') setCustomFileName('');
+      localStorage.setItem(FILE_TYPE_STORAGE_KEY, value);
+      if (value === 'fortios' && targetOs !== 'fortios') {
+          setTargetOs('fortios'); // Neu chon file fortios, OS cung nen la fortios
+          localStorage.setItem(TARGET_OS_STORAGE_KEY, 'fortios');
+      }
+      if (value !== 'other') {
+          setCustomFileName('');
+          localStorage.setItem(CUSTOM_FILE_NAME_STORAGE_KEY, '');
+      }
     } else if (name === 'customFileName') {
       setCustomFileName(value);
+      localStorage.setItem(CUSTOM_FILE_NAME_STORAGE_KEY, value);
     } else if (['modelName', 'temperature', 'topP', 'topK', 'safetySetting'].includes(name)) {
         setModelConfig(prev => ({ ...prev, [name]: (type === 'number' || name === 'temperature' || name === 'topP' || name === 'topK') ? parseFloat(value) : value }));
     } else if (name === 'runAsAdmin' && type === 'checkbox') {
@@ -143,11 +169,13 @@ function App() {
             return newFgtCfg;
         });
     }
-  }, [fileType, fortiGateConfig]);
+  }, [fileType, targetOs, fortiGateConfig]);
 
-  const handleSaveSettings = useCallback(() => { // Chi luu model name
+  const handleSaveSettings = useCallback(() => { 
     localStorage.setItem(MODEL_NAME_STORAGE_KEY, modelConfig.modelName);
-    toast.success(`Đã lưu model: ${modelConfig.modelName}`);
+    // TargetOS, FileType, CustomFileName duoc luu ngay khi thay doi o handleConfigChange
+    // FortiGateConfig cung duoc luu ngay khi thay doi
+    toast.success(`Đã lưu model: ${modelConfig.modelName}. Các cài đặt khác tự lưu khi thay đổi.`);
   }, [modelConfig.modelName]);
 
   const handleApplyUiApiKey = useCallback(() => { uiApiKey.trim() ? (setUseUiApiKey(true), toast.info("Dùng API Key từ Cài đặt.")) : toast.warn("Nhập API Key trước."); }, [uiApiKey]);
@@ -156,30 +184,32 @@ function App() {
   const toggleCollapse = useCallback((blockId: string) => setCollapsedStates(prev => ({ ...prev, [blockId]: !prev[blockId] })), []);
   const onToggleOutputExpand = useCallback((blockId: string, type: 'stdout' | 'stderr') => setExpandedOutputs(prev => ({ ...prev, [blockId]: { ...(prev[blockId] || { stdout: false, stderr: false }), [type]: !(prev[blockId]?.[type] ?? false) }})), []);
 
-  const sendApiRequest = useCallback(async (endpoint: string, body: object, isFortiGateRequest: boolean = false) => {
+  // isFortiGateExecution chi de quyet dinh co gui fortigate_config cho /api/execute hay ko
+  const sendApiRequest = useCallback(async (endpoint: string, body: object, isFortiGateExecutionForExecuteEndpoint: boolean = false) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000); // Tang timeout cho FGT
+    const timeout = (endpoint === 'execute' && isFortiGateExecutionForExecuteEndpoint) ? 120000 : 90000; 
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     let effectiveModelConfig = { ...modelConfig };
-    const needsApiKey = ['generate', 'review', 'debug', 'explain', 'fortigate_generate_script'].includes(endpoint); // Them fgt endpoint
-    if (useUiApiKey && uiApiKey && needsApiKey) effectiveModelConfig = { ...effectiveModelConfig, api_key: uiApiKey };
-    else delete effectiveModelConfig.api_key;
+    const needsApiKey = ['generate', 'review', 'debug', 'explain'].includes(endpoint);
+    if (useUiApiKey && uiApiKey && needsApiKey) {
+      effectiveModelConfig = { ...effectiveModelConfig, api_key: uiApiKey };
+    } else {
+      delete effectiveModelConfig.api_key; 
+    }
 
-    let finalBody = { ...body, model_config: effectiveModelConfig };
+    let finalBody: any = { ...body, model_config: effectiveModelConfig };
 
-    if (isFortiGateRequest) {
+    // Chi dinh kem fortigate_config cho endpoint 'execute' neu la FGT execution
+    if (endpoint === 'execute' && isFortiGateExecutionForExecuteEndpoint) {
         if (!fortiGateConfig.ipHost || !fortiGateConfig.username) {
-            toast.error("Vui lòng nhập đủ thông tin kết nối FortiGate trong Cài đặt.");
-            setIsSidebarOpen(true);
+            toast.error("Vui lòng nhập đủ thông tin kết nối FortiGate trong Cài đặt (IP/Host & Username).");
+            setIsSidebarOpen(true); 
             clearTimeout(timeoutId);
             throw new Error("Thiếu cấu hình FortiGate");
         }
         finalBody = { ...finalBody, fortigate_config: fortiGateConfig };
-    } else { // Chi gui target_os, file_type cho script thuong
-        const finalFileType = fileType === 'other' ? customFileName.trim() || 'txt' : fileType;
-        finalBody = { ...finalBody, target_os: targetOs, file_type: finalFileType };
     }
-
 
     try {
         const response = await fetch(`http://localhost:5001/api/${endpoint}`, {
@@ -188,14 +218,17 @@ function App() {
         });
         clearTimeout(timeoutId);
         const data = await response.json();
-        if (!response.ok) throw new Error(data?.error || `Lỗi ${response.status} từ /${endpoint}`);
+        if (!response.ok) {
+            let errorMsg = data?.error || `Lỗi ${response.status} từ /api/${endpoint}`;
+            throw new Error(errorMsg);
+        }
         return data;
     } catch (error: any) {
          clearTimeout(timeoutId);
-         if (error.name === 'AbortError') throw new Error(`Yêu cầu /${endpoint} quá thời gian.`);
-         throw error; // nem loi de ham goi xu ly
+         if (error.name === 'AbortError') throw new Error(`Yêu cầu đến /api/${endpoint} quá thời gian.`);
+         throw error;
     }
-  }, [modelConfig, useUiApiKey, uiApiKey, targetOs, fileType, customFileName, fortiGateConfig]);
+  }, [modelConfig, useUiApiKey, uiApiKey, fortiGateConfig]);
 
 
    const handleGenerate = useCallback(async (currentPrompt: string) => {
@@ -211,32 +244,36 @@ function App() {
         const loadingBlock: ConversationBlock = { type: 'loading', data: 'Đang tạo...', id: loadingId, timestamp: now, isNew: true };
 
         setConversation(prev => [...prev, newUserBlock, loadingBlock]);
-        setCollapsedStates(prev => ({ ...prev, [newUserBlock.id]: false })); // Mo rong round moi
+        setCollapsedStates(prev => ({ ...prev, [newUserBlock.id]: false })); 
 
-        // Xac dinh endpoint va isFortiGateRequest
-        const isFGTRequest = currentPrompt.toLowerCase().includes("fortigate") || currentPrompt.toLowerCase().includes("fgt");
-        const endpoint = isFGTRequest ? 'fortigate_generate_script' : 'generate';
+        const finalFileTypeForRequest = fileType === 'other' ? customFileName.trim() || 'txt' : fileType;
+
+        const bodyForGenerate = {
+            prompt: currentPrompt,
+            target_os: targetOs, // Gui targetOs hien tai (co the la 'fortios')
+            file_type: finalFileTypeForRequest 
+        };
 
         try {
-          const data = await sendApiRequest(endpoint, { prompt: currentPrompt }, isFGTRequest);
+          const data = await sendApiRequest('generate', bodyForGenerate);
           setConversation(prev => prev.map(b =>
                 b.id === loadingId
                 ? { type: 'ai-code', data: data.code, generatedType: data.generated_for_type, id: Date.now().toString() + '_a', timestamp: new Date().toISOString(), isNew: true }
                 : b
             ));
-          toast.success(isFGTRequest ? "Đã tạo lệnh FortiGate!" : "Đã tạo mã!");
+          toast.success(data.generated_for_type === 'fortios' ? "Đã tạo lệnh FortiGate!" : "Đã tạo mã!");
           setPrompt('');
         } catch (err: any) {
-          const errorMessage = err.message || (isFGTRequest ? 'Lỗi tạo lệnh FGT.' : 'Lỗi tạo mã.');
+          const errorMessage = err.message || 'Lỗi tạo mã/lệnh.';
           toast.error(errorMessage);
           setConversation(prev => prev.map(b => b.id === loadingId ? { type: 'error', data: errorMessage, id: Date.now().toString() + '_err', timestamp: new Date().toISOString(), isNew: true } : b));
         } finally { setIsLoading(false); }
-    }, [sendApiRequest, conversation, setPrompt]);
+    }, [sendApiRequest, conversation, setPrompt, fileType, customFileName, targetOs]);
 
     const handleReviewCode = useCallback(async (codeToReview: string | null, blockId: string) => {
         if (!codeToReview) { toast.warn("Ko có mã/lệnh để review."); return; }
         const blockToReview = conversation.find(b => b.id === blockId);
-        const fileTypeToSend = blockToReview?.generatedType || 'py';
+        const fileTypeToSend = blockToReview?.generatedType || 'py'; // py, sh, bat, fortios
 
         setIsReviewing(true);
         const now = new Date().toISOString();
@@ -258,14 +295,14 @@ function App() {
         } finally { setIsReviewing(false); }
     }, [sendApiRequest, conversation]);
 
-    // Chung cho file script va FortiGate CLI
     const handleExecute = useCallback(async (codeToExecute: string | null, blockId: string) => {
         if (!codeToExecute) { toast.warn("Ko có mã/lệnh để thực thi."); return; }
         const blockToExecute = conversation.find(b => b.id === blockId);
-        const execType = blockToExecute?.generatedType || 'py'; // VD: py, sh, bat, fortigatecli
+        const execType = blockToExecute?.generatedType || 'py'; 
 
         setIsExecuting(true);
-        const toastMsg = execType === 'fortigatecli' ? 'Đang gửi lệnh tới FortiGate...' : `Đang thực thi ${runAsAdmin ? ' với quyền Admin/Root' : ''}...`;
+        const isFGTExecution = execType === 'fortios';
+        const toastMsg = isFGTExecution ? 'Đang gửi lệnh tới FortiGate...' : `Đang thực thi ${runAsAdmin ? ' với quyền Admin/Root' : ''}...`;
         const toastId = toast.loading(toastMsg);
         const executionBlockId = Date.now().toString() + '_ex';
         const now = new Date().toISOString();
@@ -274,19 +311,22 @@ function App() {
         const newConv = [...conversation];
         let resultData: ExecutionResult | null = null;
 
-        const endpoint = execType === 'fortigatecli' ? 'fortigate_execute_script' : 'execute';
-        const payload = execType === 'fortigatecli'
-            ? { code: codeToExecute } // fortigate_config se duoc them boi sendApiRequest
-            : { code: codeToExecute, run_as_admin: runAsAdmin, file_type: execType };
+        const endpoint = 'execute'; 
+
+        let payload: any = { code: codeToExecute, file_type: execType };
+        if (!isFGTExecution) { 
+            payload.run_as_admin = runAsAdmin;
+        }
+        // fortigate_config se duoc them boi sendApiRequest neu isFGTExecution = true
 
         try {
-            const data: ExecutionResult = await sendApiRequest(endpoint, payload, execType === 'fortigatecli');
-            resultData = { ...data, codeThatFailed: codeToExecute, executed_file_type: execType }; // Luu lai type
+            const data: ExecutionResult = await sendApiRequest(endpoint, payload, isFGTExecution);
+            resultData = { ...data, codeThatFailed: codeToExecute, executed_file_type: execType }; 
 
             if (data.warning) toast.warning(data.warning, { autoClose: 7000, toastId: `warning-${executionBlockId}` });
-            const stdoutErrorKeywords = ['lỗi', 'error', 'fail', 'cannot', 'unable', 'traceback', 'exception', 'not found', 'không tìm thấy', 'invalid', 'command parse error'];
+            const stdoutErrorKeywords = ['lỗi', 'error', 'fail', 'cannot', 'unable', 'traceback', 'exception', 'not found', 'không tìm thấy', 'invalid', 'command parse error', 'command_cli_error']; // Them FGT error keyword
             const stdoutLooksLikeError = data.output?.trim() && stdoutErrorKeywords.some(kw => data.output.toLowerCase().includes(kw));
-            const hasError = data.return_code !== 0 || !!data.error?.trim() || data.return_code === -200;
+            const hasError = data.return_code !== 0 || !!data.error?.trim() || data.return_code === -200 || (isFGTExecution && data.return_code !== 0); // FGT loi return code khac 0
 
             if (!hasError && !stdoutLooksLikeError) toast.update(toastId, { render: "Thực thi thành công!", type: "success", isLoading: false, autoClose: 3000 });
             else if (!hasError && stdoutLooksLikeError) toast.update(toastId, { render: "Đã thực thi, output có thể chứa vấn đề.", type: "warning", isLoading: false, autoClose: 5000 });
@@ -309,12 +349,13 @@ function App() {
       const handleDebug = useCallback(async (codeToDebug: string | null, lastExecutionResult: ExecutionResult | null, blockId: string) => {
            const hasErrorSignal = (execResult: ExecutionResult | null): boolean => {
                if (!execResult) return false;
-               const keywords = ['lỗi', 'error', 'fail', 'cannot', 'unable', 'traceback', 'exception', 'not found', 'không tìm thấy', 'invalid', 'command parse error'];
-               return execResult.return_code !== 0 || !!execResult.error?.trim() || execResult.return_code === -200 || (!!execResult.output?.trim() && keywords.some(kw => execResult.output!.toLowerCase().includes(kw)));
+               const keywords = ['lỗi', 'error', 'fail', 'cannot', 'unable', 'traceback', 'exception', 'not found', 'không tìm thấy', 'invalid', 'command parse error', 'command_cli_error'];
+               const isFGTError = execResult.executed_file_type === 'fortios' && execResult.return_code !== 0;
+               return execResult.return_code !== 0 || !!execResult.error?.trim() || execResult.return_code === -200 || isFGTError || (!!execResult.output?.trim() && keywords.some(kw => execResult.output!.toLowerCase().includes(kw)));
            };
            if (!codeToDebug || !hasErrorSignal(lastExecutionResult)) { toast.warn("Cần mã/lệnh và kết quả lỗi để gỡ rối."); return; }
 
-           const fileTypeToSend = lastExecutionResult?.executed_file_type || 'py'; // VD: py, fortigatecli
+           const fileTypeToSend = lastExecutionResult?.executed_file_type || 'py'; 
 
            setIsDebugging(true);
            const now = new Date().toISOString();
@@ -336,7 +377,7 @@ function App() {
                const data: DebugResult = await sendApiRequest('debug', {
                    prompt: userPromptForDebug, code: codeToDebug,
                    stdout: lastExecutionResult?.output ?? '', stderr: lastExecutionResult?.error ?? '',
-                   file_type: fileTypeToSend // Gui type cho backend
+                   file_type: fileTypeToSend 
                });
                setConversation(prev => prev.map(b => b.id === loadingId ? { type: 'debug', data, id: Date.now().toString() + '_dbg', timestamp: new Date().toISOString(), isNew: true } : b));
                toast.success("Đã phân tích gỡ rối!");
@@ -349,7 +390,7 @@ function App() {
 
        const applyCorrectedCode = useCallback((correctedCode: string, originalDebugBlockId: string) => {
            const debugBlock = conversation.find(b => b.id === originalDebugBlockId);
-           const newGeneratedType = debugBlock?.data?.original_language || 'py'; // Lay lai type goc
+           const newGeneratedType = debugBlock?.data?.original_language || 'py'; 
 
            const newBlock: ConversationBlock = {
                type: 'ai-code', data: correctedCode, generatedType: newGeneratedType,
@@ -373,7 +414,7 @@ function App() {
          const newConv = [...conversation];
          let resultData : InstallationResult | null = null;
 
-         try { // Ko dung sendApiRequest vi endpoint nay ko can model_config
+         try { 
              const response = await fetch('http://localhost:5001/api/install_package', {
                  method: 'POST', headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({ package_name: packageName }),
@@ -397,7 +438,7 @@ function App() {
 
     const handleExplain = useCallback(async (blockId: string, contentToExplain: any, context: string) => {
         const blockToExplain = conversation.find(b => b.id === blockId);
-        const fileTypeToSend = (context === 'code') ? blockToExplain?.generatedType : undefined; // VD: py, fortigatecli
+        const fileTypeToSend = (context === 'code') ? blockToExplain?.generatedType : undefined; 
 
         setIsExplaining(true);
         const now = new Date().toISOString();
@@ -411,8 +452,7 @@ function App() {
         let processedContent = contentToExplain;
         if (typeof contentToExplain === 'object' && contentToExplain !== null) {
             try {
-                let contentToSend = { ...contentToExplain }; // Sao chep de ko sua doi state goc
-                // Loai bo field ko can thiet
+                let contentToSend = { ...contentToExplain }; 
                 if ((context === 'execution_result' || context === 'debug_result') && 'codeThatFailed' in contentToSend) delete contentToSend.codeThatFailed;
                 processedContent = JSON.stringify(contentToSend, null, 2);
             } catch { processedContent = String(contentToExplain); }
@@ -421,7 +461,7 @@ function App() {
         try {
             const data: ExplainResult = await sendApiRequest('explain', {
                 content: processedContent, context,
-                ...(fileTypeToSend && { file_type: fileTypeToSend }) // Them neu co
+                ...(fileTypeToSend && { file_type: fileTypeToSend }) 
             });
             setConversation(prev => prev.map(b => b.id === loadingId ? { type: 'explanation', data, id: Date.now().toString() + '_exp', timestamp: new Date().toISOString(), isNew: true } : b));
             toast.success("Đã tạo giải thích!");
@@ -445,7 +485,7 @@ function App() {
         setPrompt={setPrompt}
         onGenerate={handleGenerate}
         onReview={handleReviewCode}
-        onExecute={handleExecute} // Ham thuc thi chung
+        onExecute={handleExecute} 
         onDebug={handleDebug}
         onApplyCorrectedCode={applyCorrectedCode}
         onInstallPackage={handleInstallPackage}
@@ -471,7 +511,7 @@ function App() {
         targetOs={targetOs}
         fileType={fileType}
         customFileName={customFileName}
-        fortiGateConfig={fortiGateConfig} // Pass FGT config
+        fortiGateConfig={fortiGateConfig} 
       />
     </div>
   );

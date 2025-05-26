@@ -1,7 +1,7 @@
 // frontend/src/components/SettingsPanel.tsx
 import React, { ChangeEvent, CSSProperties } from 'react';
-import { FiSave, FiSettings, FiKey, FiAlertTriangle, FiGlobe, FiFileText, FiSliders, FiShield, FiLink } from 'react-icons/fi'; // Them FiLink
-import { TargetOS, ModelConfig, FortiGateConfig } from '../App'; // Them FortiGateConfig
+import { FiSave, FiSettings, FiKey, FiAlertTriangle, FiGlobe, FiFileText, FiSliders, FiShield, FiLink } from 'react-icons/fi'; 
+import { TargetOS, ModelConfig, FortiGateConfig } from '../App'; 
 import './SettingsPanel.css';
 
 interface SettingsPanelProps {
@@ -17,21 +17,24 @@ interface SettingsPanelProps {
   targetOs: TargetOS;
   fileType: string;
   customFileName: string;
-  fortiGateConfig: FortiGateConfig; // Thêm prop này
+  fortiGateConfig: FortiGateConfig; 
 }
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
   modelConfig, onConfigChange, onSaveSettings, isDisabled,
   runAsAdmin, uiApiKey, useUiApiKey, onApplyUiApiKey, onUseEnvKey,
   targetOs, fileType, customFileName,
-  fortiGateConfig, // Nhận prop này
+  fortiGateConfig, 
 }) => {
 
   const getSuggestedFileTypes = (os: TargetOS): { value: string; label: string }[] => {
     switch (os) {
       case 'windows': return [{ value: 'bat', label: '.bat' }, { value: 'ps1', label: '.ps1' }, { value: 'py', label: '.py' }, { value: 'other', label: 'Khác...' }];
-      case 'linux': case 'macos': return [{ value: 'sh', label: '.sh' }, { value: 'py', label: '.py' }, { value: 'other', label: 'Khác...' }];
-      default: return [{ value: 'py', label: '.py' }, { value: 'sh', label: '.sh' }, { value: 'bat', label: '.bat' }, { value: 'ps1', label: '.ps1' }, { value: 'other', label: 'Khác...' }];
+      case 'linux': return [{ value: 'sh', label: '.sh' }, { value: 'py', label: '.py' }, { value: 'other', label: 'Khác...' }];
+      case 'macos': return [{ value: 'sh', label: '.sh' }, { value: 'py', label: '.py' }, { value: 'other', label: 'Khác...' }];
+      case 'fortios': return [{ value: 'fortios', label: '.fortios (CLI)' }, { value: 'txt', label: '.txt (CLI)' }, { value: 'py', label: '.py (Script FGT)' }, { value: 'other', label: 'Khác...' }];
+      case 'auto':
+      default: return [{ value: 'py', label: '.py' }, { value: 'sh', label: '.sh' }, { value: 'bat', label: '.bat' }, { value: 'ps1', label: '.ps1' }, { value: 'fortios', label: '.fortios (CLI)'}, { value: 'other', label: 'Khác...' }];
     }
   };
 
@@ -47,7 +50,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <label htmlFor="modelName">Model</label>
           <div className="model-select-group">
             <input type="text" id="modelName" name="modelName" value={modelConfig.modelName} onChange={onConfigChange} disabled={isDisabled} placeholder="VD: gemini-1.5-flash" className="model-input"/>
-            <button onClick={onSaveSettings} disabled={isDisabled} className="save-button icon-button" title="Lưu Model, OS, File Type" aria-label="Lưu cài đặt"><FiSave /></button>
+            <button onClick={onSaveSettings} disabled={isDisabled} className="save-button icon-button" title="Lưu Model" aria-label="Lưu cài đặt"><FiSave /></button>
           </div>
         </div>
 
@@ -88,12 +91,16 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
          {/* Môi trường Mục tiêu (Index 3) */}
          <div className="settings-section target-environment-section" style={getSectionStyle(3)}>
-           <h4><FiGlobe /> Môi trường Mục tiêu (Script)</h4>
-           <label htmlFor="targetOs">Hệ điều hành</label>
+           <h4><FiGlobe /> Môi trường Mục tiêu (Script/Lệnh)</h4>
+           <label htmlFor="targetOs">Hệ điều hành / Thiết bị</label>
            <select id="targetOs" name="targetOs" value={targetOs} onChange={onConfigChange} disabled={isDisabled}>
-              <option value="auto">Tự động</option> <option value="windows">Windows</option> <option value="linux">Linux</option> <option value="macos">macOS</option>
+              <option value="auto">Tự động (Script)</option> 
+              <option value="windows">Windows (Script)</option> 
+              <option value="linux">Linux (Script)</option> 
+              <option value="macos">macOS (Script)</option>
+              <option value="fortios">FortiGate/FortiOS (CLI)</option>
            </select>
-           <label htmlFor="fileType"><FiFileText /> Loại File Thực thi</label>
+           <label htmlFor="fileType"><FiFileText /> Loại File / Lệnh</label>
            <select id="fileType" name="fileType" value={fileType} onChange={onConfigChange} disabled={isDisabled}>
              {suggestedTypes.map(type => (<option key={type.value} value={type.value}>{type.label}</option>))}
            </select>
@@ -102,33 +109,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 <input type="text" id="customFileName" name="customFileName" value={customFileName} onChange={onConfigChange} disabled={isDisabled || !isCustomFile} placeholder="VD: script.js, data.json" className="custom-file-input" aria-hidden={!isCustomFile} tabIndex={isCustomFile ? 0 : -1}/>
                  <p className="custom-file-note">Nhập tên file hoặc chỉ ext (VD: `.txt`).</p>
              </div>
-            <p className="target-env-note">Áp dụng cho việc tạo và thực thi file script.</p>
+            <p className="target-env-note">Áp dụng cho việc tạo và thực thi file script / lệnh CLI.</p>
          </div>
 
         {/* Kết nối FortiGate (Index 4) */}
         <div className="settings-section" style={getSectionStyle(4)}>
-          <label><FiLink /> Kết nối FortiGate</label>
+          <label><FiLink /> Kết nối FortiGate (Nếu mục tiêu là FortiOS)</label>
           <div className="settings-subsection">
             <label htmlFor="fortiGateIpHost">IP/Hostname</label>
-            <input type="text" id="fortiGateIpHost" name="ipHost" value={fortiGateConfig.ipHost} onChange={onConfigChange} placeholder="VD: 192.168.1.99" disabled={isDisabled} />
+            <input type="text" id="fortiGateIpHost" name="ipHost" value={fortiGateConfig.ipHost} onChange={onConfigChange} placeholder="VD: 192.168.1.99" disabled={isDisabled || targetOs !== 'fortios'} />
           </div>
           <div className="settings-subsection">
             <label htmlFor="fortiGatePortSsh">Port SSH</label>
-            <input type="text" id="fortiGatePortSsh" name="portSsh" value={fortiGateConfig.portSsh} onChange={onConfigChange} placeholder="22" disabled={isDisabled} />
+            <input type="text" id="fortiGatePortSsh" name="portSsh" value={fortiGateConfig.portSsh} onChange={onConfigChange} placeholder="22" disabled={isDisabled || targetOs !== 'fortios'} />
           </div>
           <div className="settings-subsection">
             <label htmlFor="fortiGateUsername">Username</label>
-            <input type="text" id="fortiGateUsername" name="username" value={fortiGateConfig.username} onChange={onConfigChange} placeholder="admin" disabled={isDisabled} />
+            <input type="text" id="fortiGateUsername" name="username" value={fortiGateConfig.username} onChange={onConfigChange} placeholder="admin" disabled={isDisabled || targetOs !== 'fortios'} />
           </div>
           <div className="settings-subsection">
             <label htmlFor="fortiGatePassword">Password</label>
-            <input type="password" id="fortiGatePassword" name="password" value={fortiGateConfig.password || ''} onChange={onConfigChange} placeholder="Nhập mật khẩu" disabled={isDisabled} autoComplete="new-password" />
+            <input type="password" id="fortiGatePassword" name="password" value={fortiGateConfig.password || ''} onChange={onConfigChange} placeholder="Nhập mật khẩu" disabled={isDisabled || targetOs !== 'fortios'} autoComplete="new-password" />
           </div>
-          <p className="target-env-note">Dùng để lấy rules và thực thi lệnh CLI trên FortiGate.</p>
+          <p className="target-env-note">Dùng để thực thi lệnh CLI trên FortiGate.</p>
         </div>
 
 
-        {/* Cài đặt Khác (Index 5 - thay vì 4) */}
+        {/* Cài đặt Khác (Index 5) */}
         <div className="settings-section advanced-settings-section" style={getSectionStyle(5)}>
            <h4><FiSettings/> Cài đặt Khác</h4>
            <label htmlFor="safetySetting"><FiShield /> Lọc Nội dung An toàn</label>
@@ -137,10 +144,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
              <option value="BLOCK_MEDIUM_AND_ABOVE">Chặn mức Trung bình+ (Mặc định)</option> <option value="BLOCK_LOW_AND_ABOVE">Chặn mức Thấp+</option>
            </select>
            <div className="admin-checkbox-container">
-               <input type="checkbox" id="runAsAdmin" name="runAsAdmin" checked={runAsAdmin} onChange={onConfigChange} disabled={isDisabled} className="admin-checkbox"/>
+               <input type="checkbox" id="runAsAdmin" name="runAsAdmin" checked={runAsAdmin} onChange={onConfigChange} disabled={isDisabled || targetOs === 'fortios'} className="admin-checkbox"/>
               <label htmlFor="runAsAdmin" className="admin-checkbox-label"> <FiAlertTriangle className="warning-icon" /> Chạy với quyền Admin/Root (Script) </label>
            </div>
-           <p className="admin-warning-note">Cẩn trọng! Chỉ bật nếu hiểu rõ mã script. Backend cũng cần quyền tương ứng.</p>
+           <p className="admin-warning-note">Cẩn trọng! Chỉ bật nếu hiểu rõ mã script. Backend cũng cần quyền tương ứng. Không áp dụng cho FortiOS.</p>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 // frontend/src/components/InteractionBlock.tsx
 import React from 'react';
-import { FiUser, FiCode, FiPlay, FiEye, FiAlertTriangle, FiTool, FiCheckCircle, FiLoader, FiCopy, FiDownload, FiTerminal, FiHelpCircle, FiCommand } from 'react-icons/fi'; // Them FiCommand
+import { FiUser, FiCode, FiPlay, FiEye, FiAlertTriangle, FiTool, FiCheckCircle, FiLoader, FiCopy, FiDownload, FiTerminal, FiHelpCircle, FiCommand } from 'react-icons/fi'; 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -14,7 +14,7 @@ interface InteractionBlockProps {
     block: ConversationBlock;
     isBusy: boolean;
     onReview: (codeToReview: string, blockId: string) => void;
-    onExecute: (codeToExecute: string, blockId: string) => void; // Ham thuc thi chung
+    onExecute: (codeToExecute: string, blockId: string) => void; 
     onDebug: (codeToDebug: string, executionResult: ExecutionResult, blockId: string) => void;
     onApplyCorrectedCode: (code: string, originalDebugBlockId: string) => void;
     onInstallPackage: (packageName: string, originalDebugBlockId: string) => Promise<void>;
@@ -31,10 +31,14 @@ const MarkdownComponents = {
       const match = /language-(\w+)/.exec(className || '');
       const codeString = String(children ?? '').replace(/\n$/, '');
       const handleCopyMdCode = () => navigator.clipboard.writeText(codeString).then(() => toast.info("Đã sao chép mã Markdown!"));
+      
+      // Neu tag la fortios, hien thi fortios
+      const displayLang = match && match[1] === 'fortios' ? 'fortios' : (match ? match[1] : 'code');
+
       return !inline && match ? (
         <div className="markdown-code-block">
             <div className="code-block-header">
-                <span>{match[1]}</span>
+                <span>{displayLang}</span>
                 <button onClick={handleCopyMdCode} className="icon-button subtle small copy-button" title="Sao chép"><FiCopy /></button>
              </div>
             <SyntaxHighlighter style={vscDarkPlus as any} language={match[1]} PreTag="div" showLineNumbers wrapLines lineProps={{style: {wordBreak: 'break-all', whiteSpace: 'pre-wrap'}}} {...props}>{codeString}</SyntaxHighlighter>
@@ -43,13 +47,13 @@ const MarkdownComponents = {
     }
 };
 
-const getLanguageForHighlighter = (ext?: string): string => { // Chuyen ra ngoai de tai su dung
+const getLanguageForHighlighter = (ext?: string): string => { 
     switch (ext?.toLowerCase()) {
         case 'py': return 'python'; case 'sh': return 'bash'; case 'bat': return 'batch';
         case 'ps1': return 'powershell'; case 'js': return 'javascript'; case 'ts': return 'typescript';
         case 'html': return 'html'; case 'css': return 'css'; case 'json': return 'json';
         case 'yaml': return 'yaml'; case 'md': return 'markdown'; case 'sql': return 'sql';
-        case 'fortigatecli': case 'fgtcli': return 'powershell'; // Dung powershell cho FGT CLI (hoac plain text)
+        case 'fortios': return 'plaintext'; // FGT CLI hien thi nhu text thuong, hoac co the dung 'fortinet' neu co syntax
         default: return 'plaintext';
     }
 };
@@ -59,7 +63,7 @@ const InteractionBlock: React.FC<InteractionBlockProps> = React.memo(({
     block, isBusy, onReview, onExecute, onDebug, onApplyCorrectedCode,
     onInstallPackage, onExplain, expandedOutputs, onToggleOutputExpand
  }) => {
-  const { type, data, id, timestamp, isNew, generatedType } = block;
+  const { type, data, id, timestamp, isNew, generatedType } = block; // generatedType co the la 'fortios'
 
   const handleCopy = (text: string | null | undefined) => { if (typeof text === 'string') navigator.clipboard.writeText(text).then(() => toast.info("Đã sao chép!")); };
   const handleDownload = (filename: string, text: string | null | undefined) => {
@@ -75,10 +79,11 @@ const InteractionBlock: React.FC<InteractionBlockProps> = React.memo(({
   const hasErrorSignal = (execData: any): boolean => {
       if (!execData) return false;
       const hasStdErr = !!execData?.error?.trim();
-      const nonZeroReturn = execData?.return_code !== 0 && execData?.return_code !== undefined; // FGT co the ko co return_code
-      const stdoutErrorKeywords = ['lỗi', 'error', 'fail', 'cannot', 'unable', 'traceback', 'exception', 'not found', 'không tìm thấy', 'invalid', 'command parse error']; // Them fgt error
+      const nonZeroReturn = execData?.return_code !== 0; 
+      const isFortiosError = execData?.executed_file_type === 'fortios' && execData?.return_code !== 0; // Loi FGT
+      const stdoutErrorKeywords = ['lỗi', 'error', 'fail', 'cannot', 'unable', 'traceback', 'exception', 'not found', 'không tìm thấy', 'invalid', 'command parse error', 'command_cli_error'];
       const stdoutLooksError = !!execData?.output?.trim() && stdoutErrorKeywords.some(kw => execData.output!.toLowerCase().includes(kw));
-      return !!(nonZeroReturn || hasStdErr || stdoutLooksError || execData?.return_code === -200);
+      return !!(nonZeroReturn || hasStdErr || stdoutLooksError || execData?.return_code === -200 || isFortiosError);
   };
 
    const renderContent = (): JSX.Element | null => {
@@ -87,9 +92,9 @@ const InteractionBlock: React.FC<InteractionBlockProps> = React.memo(({
       case 'ai-code':
         if (typeof data === 'string') {
             const codeStr = data.trim();
-            const displayLang = generatedType || 'txt'; // Neu ko co type, mac dinh la text
+            const displayLang = generatedType || 'txt'; 
             const highlighterLang = getLanguageForHighlighter(displayLang);
-            const defaultFileName = displayLang === 'fortigatecli' ? 'fortigate_commands.txt' : `script.${displayLang}`;
+            const defaultFileName = displayLang === 'fortios' ? 'fortigate_commands.txt' : `script.${displayLang}`;
 
             if (codeStr) {
                 return ( <div className="code-block-container">
@@ -113,7 +118,7 @@ const InteractionBlock: React.FC<InteractionBlockProps> = React.memo(({
         const execHasError = hasErrorSignal(execData);
         return ( <div className={`execution-content ${execHasError ? 'error' : ''}`}>
              {execData?.warning && ( <p className="exec-warning error-inline"><FiAlertTriangle style={{ marginRight: '5px', verticalAlign: 'middle' }}/> {execData.warning}</p> )}
-             {execData?.message && !execData.message.startsWith("Thực thi") && !execData.message.startsWith("Đã gửi") && <p className="exec-message">{execData.message}</p>}
+             {execData?.message && !execData.message.startsWith("Thực thi") && !execData.message.startsWith("Đã gửi") && !execData.message.startsWith("Gửi lệnh") && <p className="exec-message">{execData.message}</p>}
              <ExpandableOutput text={execData?.output} label="stdout" isExpanded={currentOutputStateExec.stdout} onToggleExpand={() => onToggleOutputExpand(id, 'stdout')} className="stdout-section" />
              <ExpandableOutput text={execData?.error} label="stderr" isExpanded={currentOutputStateExec.stderr} onToggleExpand={() => onToggleOutputExpand(id, 'stderr')} className="stderr-section" />
              {execData?.return_code !== undefined && <p className="return-code">Mã trả về: {execData.return_code}</p>}
@@ -123,7 +128,7 @@ const InteractionBlock: React.FC<InteractionBlockProps> = React.memo(({
         const correctedCode = debugData?.corrected_code?.trim();
         const suggestedPackage = debugData?.suggested_package;
         const showInstallButton = !!suggestedPackage;
-        const correctedCodeLang = debugData?.original_language || 'code';
+        const correctedCodeLang = debugData?.original_language || 'code'; // Co the la 'fortios'
         const correctedHighlighterLang = getLanguageForHighlighter(correctedCodeLang);
         return ( <div className="debug-content">
                 {debugData?.error && <p className="error-inline">{debugData.error}</p>}
@@ -159,7 +164,7 @@ const InteractionBlock: React.FC<InteractionBlockProps> = React.memo(({
        switch(type) {
            case 'user': return <span className="block-icon user-icon"><FiUser/></span>;
            case 'ai-code':
-               return <span className={`block-icon ${generatedType === 'fortigatecli' ? 'fgt-cli-icon' : 'ai-icon'}`}>{generatedType === 'fortigatecli' ? <FiCommand/> : <FiCode/>}</span>; // Icon khac cho FGT
+               return <span className={`block-icon ${generatedType === 'fortios' ? 'fgt-cli-icon' : 'ai-icon'}`}>{generatedType === 'fortios' ? <FiCommand/> : <FiCode/>}</span>; 
            case 'review': return <span className="block-icon review-icon"><FiEye/></span>;
            case 'execution': const execHasErr = hasErrorSignal(data); return <span className={`block-icon execution-icon ${execHasErr ? 'error' : 'success'}`}>{execHasErr ? <FiAlertTriangle/> : <FiCheckCircle/>}</span>;
            case 'debug': return <span className="block-icon debug-icon"><FiTool/></span>;
@@ -173,14 +178,14 @@ const InteractionBlock: React.FC<InteractionBlockProps> = React.memo(({
 
    const renderActionButtons = (): JSX.Element[] => {
         const actions: JSX.Element[] = [];
-        const currentFileType = generatedType || (type === 'ai-code' ? 'txt' : undefined); // default txt
+        const currentFileType = generatedType || (type === 'ai-code' ? 'txt' : undefined); 
 
         if (type === 'ai-code' && typeof data === 'string' && data.trim()) {
             const codeString = data;
             actions.push(<button key="review" onClick={() => onReview(codeString, id)} disabled={isBusy} title={`Đánh giá ${currentFileType ? `(.${currentFileType})` : ''}`}><FiEye /> Đánh giá</button>);
-            // Su dung cung ham onExecute, backend se phan loai
-            const execButtonText = currentFileType === 'fortigatecli' ? "Thực thi FGT" : "Thực thi";
-            const execButtonIcon = currentFileType === 'fortigatecli' ? <FiCommand /> : <FiPlay />;
+            
+            const execButtonText = currentFileType === 'fortios' ? "Gửi lệnh FGT" : "Thực thi";
+            const execButtonIcon = currentFileType === 'fortios' ? <FiCommand /> : <FiPlay />;
             actions.push(<button key="execute" onClick={() => onExecute(codeString, id)} disabled={isBusy} className="execute" title={execButtonText}>{execButtonIcon} {execButtonText}</button>);
         }
 

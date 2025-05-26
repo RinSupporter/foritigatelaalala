@@ -1,0 +1,92 @@
+Rin # 
+Rin # get system status | grep Virtual
+Virtual domains status: 1 in NAT mode, 0 in TP mode
+Virtual domain configuration: disable
+
+Rin # get system status | grep Version
+Version: FortiGate-VM64 v7.0.1,build0157,210714 (GA)
+Release Version Information: GA
+
+Rin # get system console
+mode                : line 
+baudrate            : 9600 
+output              : more 
+login               : enable 
+
+Rin # config system console
+
+Rin (console) # set output standard
+
+Rin (console) # end
+
+Rin # config firewall policy
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set srcintf "port2"
+
+Rin (1) # set dstintf "port1"
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule "always"
+
+Rin (1) # set service "ALL"
+
+Rin (1) # set srcaddr "any"
+entry not found in datasource
+
+value parse error before 'any'
+Command fail. Return code -3
+
+Rin (1) # set dstaddr "any"
+entry not found in datasource
+
+value parse error before 'any'
+Command fail. Return code -3
+
+Rin (1) # next
+Either srcaddr/dstaddr or srcaddr6/dstaddr6 MUST be set.
+object check operator error, -651, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # edit 2
+new entry '2' added
+
+Rin (2) # set srcintf "port1"
+
+Rin (2) # set dstintf "port2"
+
+Rin (2) # set action accept
+
+Rin (2) # set schedule "always"
+
+Rin (2) # set service "ALL"
+
+Rin (2) # set srcaddr "any"
+entry not found in datasource
+
+value parse error before 'any'
+Command fail. Return code -3
+
+Rin (2) # set dstaddr "any"
+entry not found in datasource
+
+value parse error before 'any'
+Command fail. Return code -3
+
+Rin (2) # next
+Either srcaddr/dstaddr or srcaddr6/dstaddr6 MUST be set.
+object check operator error, -651, discard the setting
+Command fail. Return code 1
+
+Rin (policy) # end
+
+Rin # config system console
+
+Rin (console) # set output more
+
+Rin (console) # end
+
+Rin # exit

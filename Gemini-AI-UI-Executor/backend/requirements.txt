@@ -1,0 +1,6 @@
+Flask
+Flask-Cors
+google-generativeai
+python-dotenv
+requests
+netmiko

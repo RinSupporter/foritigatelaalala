@@ -1,0 +1,5 @@
+*   Sử dụng cách xử lý lỗi tương đương (ví dụ kiểm tra mã lỗi `$?` sau mỗi lệnh quan trọng) để xử lý lỗi cơ bản nếu có thể.
+*   In thông báo kết quả hoặc lỗi ra `stdout` hoặc `stderr` (ví dụ `echo "Loi..." >&2`) để người dùng biết.
+*   Ưu tiên cú pháp tương thích `bash`. Đảm bảo có shebang `#!/bin/bash` hoặc `#!/usr/bin/env bash`.
+*   Chú ý và xem xét xem loại file đó khi chạy có hỗ trợ tiếng việt không (Shell script trên Linux/macOS thường hỗ trợ tốt UTF-8 và tiếng Việt có dấu).
+*   LUÔN LUÔN có cơ chế thông báo kết quả của code (ví dụ: if ... then ... else ... fi).

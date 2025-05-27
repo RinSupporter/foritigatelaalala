@@ -90,7 +90,7 @@ function App() {
   const [isExplaining, setIsExplaining] = useState<boolean>(false);
 
   const [modelConfig, setModelConfig] = useState<ModelConfig>({
-    modelName: localStorage.getItem(MODEL_NAME_STORAGE_KEY) || 'gemini-1.5-flash',
+    modelName: localStorage.getItem(MODEL_NAME_STORAGE_KEY) || 'gemini-2.5-flash',
     temperature: 0.7, topP: 0.95, topK: 40, safetySetting: 'BLOCK_MEDIUM_AND_ABOVE',
   });
 

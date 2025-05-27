@@ -1196,3 +1196,155 @@ Rin (policy) # end
 Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:663]
 2025-05-26 21:24:04,188 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]
 2025-05-26 21:27:21,858 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:370]
+2025-05-26 22:01:37,029 INFO: Backend Gemini UI Executor dang khoi dong... [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:1128]
+2025-05-26 22:01:37,030 INFO: Backend dang chay voi quyen User thong thuong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:1137]
+2025-05-26 22:02:31,589 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:369]
+2025-05-26 22:02:34,037 INFO: -------------------- RAW GEMINI RESPONSE (Generate) -------------------- [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:559]
+2025-05-26 22:02:34,037 INFO: ```fortios
+config firewall policy
+    edit 1
+        set name "Port2_to_Port1_Allow_Traffic"
+        set srcintf port2
+        set dstintf port1
+        set srcaddr all
+        set dstaddr all
+        set action accept
+        set schedule always
+        set service ALL
+        set nat disable
+        set logtraffic all
+    next
+end
+show firewall policy
+``` [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:560]
+2025-05-26 22:02:34,038 INFO: ------------------------------------------------------------ [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:561]
+2025-05-26 22:02:34,038 INFO: Trich xuat code voi tags: ['fortios', 'cli', 'text'] cho ext: .fortios [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:467]
+2025-05-26 22:02:34,038 INFO: Tim thay khoi code voi tag: 'fortios' (pattern 0). [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:479]
+2025-05-26 22:02:51,800 INFO: Nhan dc lenh FortiOS CLI (.fortios). Chuan bi thuc thi qua Netmiko. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:773]
+2025-05-26 22:02:51,800 INFO: Dang ket noi toi FortiGate: 192.168.1.99:22 voi user: admin [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:668]
+2025-05-26 22:02:53,465 INFO: Ket noi FortiGate thanh cong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:670]
+2025-05-26 22:02:53,465 INFO: Phat hien lenh config, su dung send_config_set. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:676]
+2025-05-26 22:02:57,175 INFO: Ket qua config FortiGate:
+config firewall policy
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set name "Port2_to_Port1_Allow_Traffic"
+
+Rin (1) # set srcintf port2
+
+Rin (1) # set dstintf port1
+
+Rin (1) # set srcaddr all
+
+Rin (1) # set dstaddr all
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule always
+
+Rin (1) # set service ALL
+
+Rin (1) # set nat disable
+
+Rin (1) # set logtraffic all
+
+Rin (1) # next
+
+Rin (policy) # end
+
+Rin # show firewall policy
+config firewall policy
+    edit 1
+        set name "Port2_to_Port1_Allow_Traffic"
+        set uuid 7b4e78b8-3a42-51f0-d3bd-acaaac5090da
+        set srcintf "port2"
+        set dstintf "port1"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+end
+
+Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:694]
+2025-05-26 22:05:40,636 INFO: Backend Gemini UI Executor dang khoi dong... [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:1128]
+2025-05-26 22:05:40,638 INFO: Backend dang chay voi quyen User thong thuong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:1137]
+2025-05-26 22:05:42,438 INFO: Backend Gemini UI Executor dang khoi dong... [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:1128]
+2025-05-26 22:05:42,440 INFO: Backend dang chay voi quyen User thong thuong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:1137]
+2025-05-26 22:06:34,588 INFO: Goi model: gemini-1.5-flash voi config: T=0.7, P=0.95, K=40, Safety=BLOCK_MEDIUM_AND_ABOVE [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:369]
+2025-05-26 22:06:36,275 INFO: -------------------- RAW GEMINI RESPONSE (Generate) -------------------- [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:559]
+2025-05-26 22:06:36,275 INFO: ```fortios
+config firewall policy
+    edit 1
+        set name "Port2_to_Port1_Allow_Traffic"
+        set srcintf port2
+        set dstintf port1
+        set srcaddr all
+        set dstaddr all
+        set action accept
+        set schedule always
+        set service ALL
+        set nat disable
+        set logtraffic all
+    next
+end
+show firewall policy
+``` [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:560]
+2025-05-26 22:06:36,275 INFO: ------------------------------------------------------------ [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:561]
+2025-05-26 22:06:36,276 INFO: Trich xuat code voi tags: ['fortios', 'cli', 'text'] cho ext: .fortios [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:467]
+2025-05-26 22:06:36,276 INFO: Tim thay khoi code voi tag: 'fortios' (pattern 0). [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:479]
+2025-05-26 22:06:40,250 INFO: Nhan dc lenh FortiOS CLI (.fortios). Chuan bi thuc thi qua Netmiko. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:773]
+2025-05-26 22:06:40,250 INFO: Dang ket noi toi FortiGate: 192.168.1.99:22 voi user: admin [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:668]
+2025-05-26 22:06:41,894 INFO: Ket noi FortiGate thanh cong. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:670]
+2025-05-26 22:06:41,894 INFO: Phat hien lenh config, su dung send_config_set. [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:676]
+2025-05-26 22:06:45,606 INFO: Ket qua config FortiGate:
+config firewall policy
+
+Rin (policy) # edit 1
+new entry '1' added
+
+Rin (1) # set name "Port2_to_Port1_Allow_Traffic"
+
+Rin (1) # set srcintf port2
+
+Rin (1) # set dstintf port1
+
+Rin (1) # set srcaddr all
+
+Rin (1) # set dstaddr all
+
+Rin (1) # set action accept
+
+Rin (1) # set schedule always
+
+Rin (1) # set service ALL
+
+Rin (1) # set nat disable
+
+Rin (1) # set logtraffic all
+
+Rin (1) # next
+
+Rin (policy) # end
+
+Rin # show firewall policy
+config firewall policy
+    edit 1
+        set name "Port2_to_Port1_Allow_Traffic"
+        set uuid 03761f7a-3a43-51f0-7923-7462101c452f
+        set srcintf "port2"
+        set dstintf "port1"
+        set action accept
+        set srcaddr "all"
+        set dstaddr "all"
+        set schedule "always"
+        set service "ALL"
+        set logtraffic all
+    next
+end
+
+Rin #  [in E:\pythonpj\fortigate\Gemini-AI-UI-Executor\backend\app.py:694]

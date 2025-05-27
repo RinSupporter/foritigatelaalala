@@ -1,0 +1,5 @@
+*   Sử dụng `if errorlevel NEQ 0` hoặc `if %errorlevel% NEQ 0` để kiểm tra lỗi sau các lệnh quan trọng.
+*   In thông báo kết quả hoặc lỗi ra `stdout` (echo) hoặc `stderr` (echo ... >&2).
+*   Đảm bảo cú pháp Windows Batch hợp lệ.
+*   Chú ý và xem xét xem loại file đó khi chạy có hỗ trợ tiếng việt không (Batch script trên Windows CMD thường hỗ trợ tiếng Việt có dấu nếu font console và encoding file (`chcp 65001`) phù hợp, nhưng nên cẩn thận với ký tự đặc biệt. Nếu có thể, ưu tiên không dấu hoặc test kỹ).
+*   LUÔN LUÔN có cơ chế thông báo kết quả của code (ví dụ: if ... else ...).

@@ -1,0 +1,16 @@
+# ví dụ tạo port 2 ra port 1 với all service
+config firewall policy
+    edit 1 
+        set name "Port2_to_Port1_Allow_Traffic" 
+        set srcintf port2                     
+        set dstintf port1                   
+        set srcaddr all                      
+        set dstaddr all                       
+        set action accept                       
+        set schedule always                 
+        set service ALL
+        // Tùy chọn khác như NAT, logging
+        set nat disable                        
+        set logtraffic all                     
+    next 
+end

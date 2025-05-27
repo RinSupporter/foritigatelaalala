@@ -1,0 +1,19 @@
+@echo off
+setlocal
+
+set "target_dir=%USERPROFILE%\Desktop\temp_folder"
+
+if not exist "%target_dir%" (
+    mkdir "%target_dir%"
+    if %errorlevel% == 0 (
+        echo Da tao thu muc: "%target_dir%"
+    ) else (
+        echo Loi khi tao thu muc: "%target_dir%" >&2
+        exit /b 1
+    )
+) else (
+    echo Thu muc da ton tai: "%target_dir%"
+)
+
+endlocal
+exit /b 0

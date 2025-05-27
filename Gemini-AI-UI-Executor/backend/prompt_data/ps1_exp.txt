@@ -1,0 +1,15 @@
+$TargetDir = Join-Path $env:USERPROFILE "Desktop\temp_folder_ps1"
+
+if (-not (Test-Path $TargetDir)) {
+    try {
+        New-Item -ItemType Directory -Path $TargetDir -ErrorAction Stop | Out-Null
+        Write-Host "Da tao thu muc: '$TargetDir'"
+    } catch {
+        Write-Error "Loi khi tao thu muc: '$TargetDir'. Chi tiet: $($_.Exception.Message)"
+        # Exit with a non-zero code to indicate failure
+        exit 1
+    }
+} else {
+    Write-Host "Thu muc da ton tai: '$TargetDir'"
+}
+exit 0

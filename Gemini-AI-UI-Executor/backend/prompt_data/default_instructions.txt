@@ -1,0 +1,5 @@
+*   Đảm bảo mã/lệnh là **an toàn** và **chỉ thực hiện đúng yêu cầu**.
+*   Sử dụng cách xử lý lỗi phù hợp với ngôn ngữ/loại lệnh để xử lý lỗi cơ bản nếu có thể.
+*   In thông báo kết quả hoặc lỗi ra `stdout` hoặc `stderr` để người dùng biết chuyện gì đang xảy ra.
+*   Chú ý và xem xét xem loại file đó khi chạy có hỗ trợ tiếng việt không, nếu có thì hãy ghi kết quả trả về bằng tiếng việt có dấu, nếu không thì hãy ghi không dấu để tránh rối loạn ký tự trong output.
+*   LUÔN LUÔN có cơ chế thông báo kết quả của code (ví dụ: if else) nếu là script, hoặc cung cấp các lệnh show/get để xác nhận nếu là CLI thiết bị.

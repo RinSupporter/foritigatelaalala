@@ -1,0 +1,15 @@
+#!/bin/bash
+TARGET_DIR="$HOME/Desktop/temp_folder_sh"
+
+if [ ! -d "$TARGET_DIR" ]; then
+    mkdir -p "$TARGET_DIR"
+    if [ $? -eq 0 ]; then
+        echo "Da tao thu muc: '$TARGET_DIR'"
+    else
+        echo "Loi khi tao thu muc: '$TARGET_DIR'" >&2
+        exit 1
+    fi
+else
+    echo "Thu muc da ton tai: '$TARGET_DIR'"
+fi
+exit 0

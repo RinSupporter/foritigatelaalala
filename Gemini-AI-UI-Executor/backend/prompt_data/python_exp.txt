@@ -1,0 +1,19 @@
+# Ví dụ: Tạo một thư mục nếu nó chưa tồn tại
+import os
+import sys
+
+target_dir = "thu_muc_moi_py"
+
+try:
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+        print(f"Da tao thu muc: '{target_dir}'")
+    else:
+        print(f"Thu muc da ton tai: '{target_dir}'")
+    sys.exit(0)
+except OSError as e:
+    print(f"Loi khi tao thu muc '{target_dir}': {e}", file=sys.stderr)
+    sys.exit(1)
+except Exception as e:
+    print(f"Loi khong mong doi: {e}", file=sys.stderr)
+    sys.exit(1)

@@ -1,0 +1,6 @@
+*   Cung cấp các lệnh cần thiết để đạt được mục tiêu.
+*   Các lệnh phải chính xác và theo đúng cú pháp của thiết bị.
+*   Ví dụ, để vào mode config trên FortiGate là `config system interface`, sau đó là các lệnh `edit`, `set`, `next`, `end`.
+*   Đối với yêu cầu trích xuất cấu hình FortiGate, hãy bao gồm các lệnh `show full-configuration` cho từng mục cần thiết (ví dụ: `config firewall policy`, `config firewall address`, `config firewall service custom`, v.v.) và kết thúc mỗi mục bằng `end`.
+*   LUÔN LUÔN cung cấp các lệnh show/get để xác nhận nếu là CLI thiết bị.
+*   Chú ý và xem xét xem loại file đó khi chạy có hỗ trợ tiếng việt không (FortiOS CLI thường không hỗ trợ tốt tiếng Việt có dấu trong output lệnh, ưu tiên không dấu).

@@ -1,0 +1,5 @@
+*   Sử dụng `try-except` để xử lý lỗi cơ bản nếu có thể.
+*   In thông báo kết quả hoặc lỗi ra `stdout` hoặc `stderr` để người dùng biết chuyện gì đang xảy ra.
+*   Đảm bảo tương thích Python 3.
+*   Chú ý và xem xét xem loại file đó khi chạy có hỗ trợ tiếng việt không (Python hỗ trợ tốt UTF-8), nếu có thì hãy ghi kết quả trả về bằng tiếng việt có dấu.
+*   LUÔN LUÔN có cơ chế thông báo kết quả của code (ví dụ: if else).
